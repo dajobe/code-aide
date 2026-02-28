@@ -30,8 +30,13 @@
       "command": "claude",
       "install_type": "self_managed",
       "npm_package": "@anthropic-ai/claude-code",
-      "upgrade_command": ["claude", "upgrade"],
-      "prerequisites": ["npm"],
+      "upgrade_command": [
+        "claude",
+        "upgrade"
+      ],
+      "prerequisites": [
+        "npm"
+      ],
       "min_node_version": null,
       "next_steps": "Run 'claude' and then use '/login' to authenticate",
       "version_args": [
@@ -39,8 +44,8 @@
       ],
       "docs_url": "https://docs.anthropic.com/en/docs/build-with-claude/claude-code",
       "default_install": true,
-      "latest_version": "2.1.62",
-      "latest_date": "2026-02-27"
+      "latest_version": "2.1.63",
+      "latest_date": "2026-02-28"
     },
     "gemini": {
       "name": "Gemini CLI",
@@ -57,7 +62,7 @@
       ],
       "docs_url": "https://github.com/google-gemini/gemini-cli",
       "default_install": true,
-      "latest_version": "0.30.1",
+      "latest_version": "0.31.0",
       "latest_date": "2026-02-27"
     },
     "amp": {
@@ -75,8 +80,8 @@
       ],
       "docs_url": "https://ampcode.com/manual",
       "default_install": false,
-      "latest_version": "0.0.1772222620-g1de875",
-      "latest_date": "2026-02-27"
+      "latest_version": "0.0.1772308894-g06c525",
+      "latest_date": "2026-02-28"
     },
     "codex": {
       "name": "Codex CLI",
