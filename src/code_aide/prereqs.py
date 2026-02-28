@@ -152,19 +152,37 @@ def is_tool_installed(tool_name: str) -> bool:
     return command_exists(tool_config["command"])
 
 
-def check_path_directories() -> None:
-    """Check if common binary installation directories are in PATH and warn if not."""
+def check_path_directories(tools_installed: Optional[List[str]] = None) -> None:
+    """Check if binary installation directories are in PATH and warn if not.
+
+    When *tools_installed* is given, only directories relevant to those
+    tools are checked.  Otherwise a small set of common directories is used.
+    """
     current_path = os.environ.get("PATH", "")
     path_entries = current_path.split(":")
 
-    common_dirs = [
-        os.path.expanduser("~/.local/bin"),
-        os.path.expanduser("~/.npm-packages/bin"),
-        os.path.expanduser("~/.amp/bin"),
-    ]
+    if tools_installed:
+        seen: set = set()
+        dirs_to_check: List[str] = []
+        for tool_name in tools_installed:
+            tool_config = TOOLS.get(tool_name)
+            if not tool_config:
+                continue
+            bin_dir = tool_config.get("bin_dir")
+            if bin_dir:
+                expanded = os.path.expanduser(bin_dir)
+                if expanded not in seen:
+                    seen.add(expanded)
+                    dirs_to_check.append(expanded)
+    else:
+        dirs_to_check = [
+            os.path.expanduser("~/.local/bin"),
+            os.path.expanduser("~/.npm-packages/bin"),
+            os.path.expanduser("~/.amp/bin"),
+        ]
 
     missing_dirs = []
-    for dir_path in common_dirs:
+    for dir_path in dirs_to_check:
         if dir_path not in path_entries and os.path.isdir(dir_path):
             missing_dirs.append(dir_path)
 
