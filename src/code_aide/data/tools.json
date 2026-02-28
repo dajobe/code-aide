@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "tools": {
+    "cursor": {
+      "name": "Cursor CLI",
+      "command": "agent",
+      "install_type": "direct_download",
+      "install_url": "https://cursor.com/install",
+      "install_sha256": "7ccf2992a4de12c040854a833db0255a08cdfc91d40c75b78cf66a8746d9bd24",
+      "download_url_template": "https://downloads.cursor.com/lab/{version}/{os}/{arch}/agent-cli-package.tar.gz",
+      "install_dir": "~/.local/share/cursor-agent/versions/{version}",
+      "bin_dir": "~/.local/bin",
+      "symlinks": {
+        "agent": "cursor-agent",
+        "cursor-agent": "cursor-agent"
+      },
+      "prerequisites": [],
+      "min_node_version": null,
+      "next_steps": "Run 'agent login' to authenticate",
+      "version_args": [
+        "--version"
+      ],
+      "docs_url": "https://docs.cursor.com/",
+      "default_install": true,
+      "latest_version": "2026.02.27-e7d2ef6",
+      "latest_date": "2026-02-27"
+    },
+    "claude": {
+      "name": "Claude CLI (Claude Code)",
+      "command": "claude",
+      "install_type": "self_managed",
+      "npm_package": "@anthropic-ai/claude-code",
+      "upgrade_command": ["claude", "upgrade"],
+      "prerequisites": ["npm"],
+      "min_node_version": null,
+      "next_steps": "Run 'claude' and then use '/login' to authenticate",
+      "version_args": [
+        "--version"
+      ],
+      "docs_url": "https://docs.anthropic.com/en/docs/build-with-claude/claude-code",
+      "default_install": true,
+      "latest_version": "2.1.62",
+      "latest_date": "2026-02-27"
+    },
+    "gemini": {
+      "name": "Gemini CLI",
+      "command": "gemini",
+      "install_type": "npm",
+      "npm_package": "@google/gemini-cli",
+      "prerequisites": [
+        "npm"
+      ],
+      "min_node_version": 20,
+      "next_steps": "Run 'gemini' and choose 'Login with Google' to authenticate",
+      "version_args": [
+        "--version"
+      ],
+      "docs_url": "https://github.com/google-gemini/gemini-cli",
+      "default_install": true,
+      "latest_version": "0.30.1",
+      "latest_date": "2026-02-27"
+    },
+    "amp": {
+      "name": "Amp (Sourcegraph)",
+      "command": "amp",
+      "install_type": "script",
+      "install_url": "https://ampcode.com/install.sh",
+      "install_sha256": "852b48bf67bfe0494d1e3536eacbf8f4607617c111921c804b4199a5888a44a4",
+      "version_url": "https://storage.googleapis.com/amp-public-assets-prod-0/cli/cli-version.txt",
+      "prerequisites": [],
+      "min_node_version": null,
+      "next_steps": "Run 'amp login' to authenticate",
+      "version_args": [
+        "--version"
+      ],
+      "docs_url": "https://ampcode.com/manual",
+      "default_install": false,
+      "latest_version": "0.0.1772222620-g1de875",
+      "latest_date": "2026-02-27"
+    },
+    "codex": {
+      "name": "Codex CLI",
+      "command": "codex",
+      "install_type": "npm",
+      "npm_package": "@openai/codex",
+      "prerequisites": [
+        "npm"
+      ],
+      "min_node_version": 22,
+      "next_steps": "Run 'codex' to start",
+      "version_args": [
+        "--version"
+      ],
+      "docs_url": "https://github.com/openai/codex",
+      "default_install": false,
+      "latest_version": "0.106.0",
+      "latest_date": "2026-02-26"
+    }
+  }
+}

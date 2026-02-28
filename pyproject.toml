@@ -1,0 +1,48 @@
+[project]
+name = "code-aide"
+version = "1.0.0"
+description = "Manage AI coding CLI tools (Claude, Cursor, Gemini, Amp, Codex)"
+readme = "README.md"
+authors = [
+    { name = "Dave Beckett" },
+]
+license = "Apache-2.0"
+requires-python = ">=3.11"
+dependencies = []
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Build Tools",
+    "Topic :: System :: Installation/Setup",
+]
+
+[project.urls]
+Homepage = "https://github.com/dajobe/code-aide"
+Repository = "https://github.com/dajobe/code-aide"
+Issues = "https://github.com/dajobe/code-aide/issues"
+Changelog = "https://github.com/dajobe/code-aide/releases"
+
+[project.scripts]
+code-aide = "code_aide.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-xdist>=3.0",
+    "black>=25.1.0",
+]

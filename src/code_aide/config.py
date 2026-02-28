@@ -1,0 +1,105 @@
+"""Configuration management for code-aide.
+
+Handles XDG base directory paths, loading bundled tool definitions from
+package data, loading/saving the user's version cache, and merging
+bundled defaults with cached data.
+"""
+
+import importlib.resources
+import json
+import os
+
+
+def get_config_dir() -> str:
+    """Return XDG config directory for code-aide.
+
+    Uses $XDG_CONFIG_HOME/code-aide if set, else ~/.config/code-aide.
+    Creates the directory if it doesn't exist.
+    """
+    xdg = os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
+    config_dir = os.path.join(xdg, "code-aide")
+    os.makedirs(config_dir, exist_ok=True)
+    return config_dir
+
+
+def get_versions_cache_path() -> str:
+    """Return path to the user's version cache file."""
+    return os.path.join(get_config_dir(), "versions.json")
+
+
+def load_bundled_tools() -> dict:
+    """Load static tool definitions bundled with the package.
+
+    Uses importlib.resources to read src/code_aide/data/tools.json.
+    """
+    ref = importlib.resources.files("code_aide").joinpath("data/tools.json")
+    with importlib.resources.as_file(ref) as path:
+        with open(path) as f:
+            return json.load(f)
+
+
+def load_versions_cache() -> dict:
+    """Load the user's cached version data, or empty dict if none."""
+    cache_path = get_versions_cache_path()
+    if os.path.exists(cache_path):
+        try:
+            with open(cache_path, encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                return data
+        except (OSError, json.JSONDecodeError, ValueError):
+            pass
+    return {}
+
+
+def save_versions_cache(data: dict) -> None:
+    """Write version data to the user's cache file."""
+    cache_path = get_versions_cache_path()
+    with open(cache_path, "w") as f:
+        json.dump(data, f, indent=2)
+        f.write("\n")
+
+
+DYNAMIC_FIELDS = ["latest_version", "latest_date", "install_sha256"]
+
+
+def merge_cached_versions(tools: dict, cache: dict) -> None:
+    """Merge cached dynamic fields into tool definitions in-place."""
+    cached_tools = cache.get("tools", {})
+    for tool_key, tool_data in tools.items():
+        if tool_key in cached_tools:
+            for field in DYNAMIC_FIELDS:
+                if field in cached_tools[tool_key]:
+                    tool_data[field] = cached_tools[tool_key][field]
+
+
+def load_tools_config() -> dict:
+    """Load tool config: bundled definitions merged with cached versions.
+
+    The bundled tools.json provides all tool definitions plus a baseline
+    for latest_version, latest_date, and install_sha256. The user's
+    version cache (from update-versions) overrides these dynamic fields
+    when present.
+    """
+    bundled = load_bundled_tools()
+    cache = load_versions_cache()
+    tools = bundled.get("tools", {})
+    merge_cached_versions(tools, cache)
+    return tools
+
+
+def save_updated_versions(tools: dict) -> None:
+    """Save only dynamic version fields to the user's cache.
+
+    Called by update-versions command. Only stores latest_version,
+    latest_date, and install_sha256 per tool.
+    """
+    cache_data = {"tools": {}}
+    for tool_key, tool_data in tools.items():
+        entry = {}
+        for field in DYNAMIC_FIELDS:
+            if field in tool_data:
+                entry[field] = tool_data[field]
+        if entry:
+            cache_data["tools"][tool_key] = entry
+    save_versions_cache(cache_data)

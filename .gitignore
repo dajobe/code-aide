@@ -1,0 +1,15 @@
+*$py.class
+*.egg
+*.egg-info/
+*.py[cod]
+.DS_Store
+.claude/
+.eggs
+.idea/
+.pytest_cache/
+.venv/
+.vscode/
+__pycache__/
+build/
+dist/
+uv.lock
