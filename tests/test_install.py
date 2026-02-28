@@ -122,3 +122,57 @@ class TestInstallDirectDownloadDryrun(unittest.TestCase):
 
         result = cli_install.install_direct_download("test", tool_config, dryrun=True)
         self.assertFalse(result)
+
+
+class TestInstallDirectDownload(unittest.TestCase):
+    """Tests for install_direct_download in non-dryrun mode."""
+
+    @mock.patch.object(cli_install, "detect_os_arch", return_value=("linux", "x64"))
+    @mock.patch.object(cli_install, "fetch_url")
+    def test_creates_missing_install_parent_directory(self, mock_fetch, mock_os_arch):
+        script_content = b"echo install"
+        expected_sha256 = cli_install.hashlib.sha256(script_content).hexdigest()
+
+        tarball_data = io.BytesIO()
+        with tarfile.open(fileobj=tarball_data, mode="w:gz") as tf:
+            payload = b"#!/bin/sh\necho ok\n"
+            info = tarfile.TarInfo("package/test-bin")
+            info.mode = 0o755
+            info.size = len(payload)
+            tf.addfile(info, io.BytesIO(payload))
+        tarball_bytes = tarball_data.getvalue()
+
+        def _fake_fetch(url, timeout=30):
+            if url.endswith("/install"):
+                return script_content, None
+            return tarball_bytes, None
+
+        mock_fetch.side_effect = _fake_fetch
+
+        tool_config = {
+            "name": "Test Tool",
+            "install_url": "https://example.com/install",
+            "install_sha256": expected_sha256,
+            "download_url_template": "https://example.com/{version}/{os}/{arch}/pkg.tar.gz",
+            "install_dir": "/tmp/test-{version}",
+            "bin_dir": "/tmp/test-bin",
+            "symlinks": {"test": "test-bin"},
+            "latest_version": "1.0.0",
+        }
+
+        with tempfile.TemporaryDirectory() as td:
+            install_dir = os.path.join(td, "missing", "versions", "1.0.0")
+            bin_dir = os.path.join(td, "bin")
+
+            result = cli_install.install_direct_download(
+                "test",
+                tool_config,
+                dryrun=False,
+                install_dir_override=install_dir,
+                bin_dir_override=bin_dir,
+            )
+
+            self.assertTrue(result)
+            self.assertTrue(os.path.isdir(os.path.dirname(install_dir)))
+            self.assertTrue(os.path.exists(os.path.join(install_dir, "test-bin")))
+            self.assertTrue(os.path.islink(os.path.join(bin_dir, "test")))

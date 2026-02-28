@@ -163,7 +163,8 @@ def install_direct_download(
         tarball_data, _ = fetch_url(download_url, timeout=120)
         success(f"Downloaded {len(tarball_data)} bytes")
 
-        install_parent = os.path.dirname(install_dir)
+        install_parent = os.path.dirname(install_dir) or "."
+        os.makedirs(install_parent, exist_ok=True)
         temp_dir = tempfile.mkdtemp(
             prefix=os.path.basename(install_dir) + ".tmp-", dir=install_parent
         )
