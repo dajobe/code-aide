@@ -59,7 +59,7 @@ class TestCmdUpdateVersions(unittest.TestCase):
             (),
             {
                 "tools": ["missing"],
-                "dry_run": False,
+                "dryrun": False,
                 "yes": False,
                 "verbose": False,
                 "bundled": False,
@@ -81,7 +81,7 @@ class TestCmdUpdateVersions(unittest.TestCase):
             (),
             {
                 "tools": [],
-                "dry_run": True,
+                "dryrun": True,
                 "yes": False,
                 "verbose": False,
                 "bundled": False,
@@ -131,7 +131,7 @@ class TestCmdUpdateVersions(unittest.TestCase):
             (),
             {
                 "tools": [],
-                "dry_run": False,
+                "dryrun": False,
                 "yes": True,
                 "verbose": False,
                 "bundled": True,

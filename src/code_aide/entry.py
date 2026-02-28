@@ -84,7 +84,7 @@ def main() -> None:
     )
     update_versions_parser.add_argument(
         "-n",
-        "--dry-run",
+        "--dryrun",
         action="store_true",
         help="Show changes only, do not write updates",
     )

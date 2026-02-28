@@ -302,7 +302,7 @@ def cmd_update_versions(args: argparse.Namespace) -> None:
 
     updates = [result for result in results if result["update"]]
     if not updates:
-        if version_info_changed and not args.dry_run:
+        if version_info_changed and not args.dryrun:
             dest = _save(config["tools"])
             print(f"Updated latest version info in {dest}.")
         if version_info_changed:
@@ -323,7 +323,7 @@ def cmd_update_versions(args: argparse.Namespace) -> None:
     for result in updates:
         print(f"  {result['tool']}: SHA256 changed")
 
-    if args.dry_run:
+    if args.dryrun:
         print("\nDry run mode - no changes written.")
         return
 
