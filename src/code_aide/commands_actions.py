@@ -26,6 +26,7 @@ from code_aide.config import (
     load_bundled_tools,
     load_versions_cache,
     merge_cached_versions,
+    save_bundled_versions,
     save_updated_versions,
 )
 
@@ -233,7 +234,8 @@ def cmd_update_versions(args: argparse.Namespace) -> None:
     """Handle update-versions command: check upstream for latest tool versions."""
     bundled = load_bundled_tools()
     tools = bundled.get("tools", {})
-    merge_cached_versions(tools, load_versions_cache())
+    if not args.bundled:
+        merge_cached_versions(tools, load_versions_cache())
 
     config: Dict[str, Any] = {"tools": tools}
 
@@ -290,11 +292,19 @@ def cmd_update_versions(args: argparse.Namespace) -> None:
                 tool_entry["latest_date"] = date
                 version_info_changed = True
 
+    def _save(tools: dict) -> str:
+        """Save versions to bundled or user cache. Returns description."""
+        if args.bundled:
+            path = save_bundled_versions(tools)
+            return path
+        save_updated_versions(tools)
+        return "~/.config/code-aide/versions.json"
+
     updates = [result for result in results if result["update"]]
     if not updates:
         if version_info_changed and not args.dry_run:
-            save_updated_versions(config["tools"])
-            print("Updated latest version info in ~/.config/code-aide/versions.json.")
+            dest = _save(config["tools"])
+            print(f"Updated latest version info in {dest}.")
         if version_info_changed:
             print(
                 "No installer checksum updates required "
@@ -325,18 +335,16 @@ def cmd_update_versions(args: argparse.Namespace) -> None:
             return
         if answer not in ("y", "yes"):
             if version_info_changed:
-                save_updated_versions(config["tools"])
-                print(
-                    "Updated latest version info in ~/.config/code-aide/versions.json."
-                )
+                dest = _save(config["tools"])
+                print(f"Updated latest version info in {dest}.")
             else:
                 print("No changes made.")
             return
 
     updated = apply_sha256_updates(config, results)
-    save_updated_versions(config["tools"])
+    dest = _save(config["tools"])
 
-    print(f"\nUpdated {len(updated)} tool(s) in ~/.config/code-aide/versions.json:")
+    print(f"\nUpdated {len(updated)} tool(s) in {dest}:")
     for name in updated:
         print(f"  {name}")
     if version_info_changed:

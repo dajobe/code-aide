@@ -47,6 +47,9 @@ code-aide update-versions -n
 
 # Update version cache
 code-aide update-versions -y
+
+# Update bundled version baseline (developer use, before releases)
+code-aide update-versions -b -y
 ```
 
 ## Supported Tools
@@ -111,24 +114,28 @@ uv run pytest tests/test_install.py::TestDetectOsArch -v
 
 `publish.yml` publishes to PyPI when a Git tag matching `v*` is pushed.
 
-1. Update the version string in `src/code_aide/__init__.py` (`__version__`).
+1. Update the bundled version baseline:
+   - `code-aide update-versions -b -y`
+   - `git add src/code_aide/data/tools.json`
+   - `git commit -m "Updated bundled version data"`
+2. Update the version string in `src/code_aide/__init__.py` (`__version__`).
    `pyproject.toml` reads it automatically via Hatchling.
-2. Run checks:
+3. Run checks:
    - `uv run pytest tests/ -v`
    - `uv build`
-3. Commit the release version bump:
+4. Commit the release version bump:
    - `git add src/code_aide/__init__.py`
    - `git commit -m "Bumped version to X.Y.Z"`
-4. Write useful commit messages before tagging:
+5. Write useful commit messages before tagging:
    - Start subject lines with an action verb in past tense (`Added`, `Changed`,
      `Fixed`, `Removed`).
    - Keep subjects user-facing so auto-generated release notes are meaningful.
    - Group related changes into focused commits instead of one broad commit.
    - Example: `Fixed timeout handling in status command`
-5. Tag and push:
+6. Tag and push:
    - `git tag vX.Y.Z`
    - `git push origin main --follow-tags`
-6. Confirm GitHub Actions:
+7. Confirm GitHub Actions:
    - CI should pass.
    - Publish workflow should upload to PyPI and create GitHub Release notes.
    - Release notes should include generated notes plus a commit summary from the

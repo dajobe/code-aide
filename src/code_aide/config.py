@@ -103,3 +103,29 @@ def save_updated_versions(tools: dict) -> None:
         if entry:
             cache_data["tools"][tool_key] = entry
     save_versions_cache(cache_data)
+
+
+def save_bundled_versions(tools: dict) -> str:
+    """Update dynamic fields in the bundled data/tools.json.
+
+    Loads the existing bundled file to preserve static fields, then
+    overwrites only the dynamic version fields from the provided tools
+    dict.  Returns the file path written.
+    """
+    ref = importlib.resources.files("code_aide").joinpath("data/tools.json")
+    path = str(ref)
+
+    with open(path, encoding="utf-8") as f:
+        bundled = json.load(f)
+
+    for tool_key, tool_data in tools.items():
+        if tool_key in bundled.get("tools", {}):
+            for field in DYNAMIC_FIELDS:
+                if field in tool_data:
+                    bundled["tools"][tool_key][field] = tool_data[field]
+
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(bundled, f, indent=2)
+        f.write("\n")
+
+    return path
