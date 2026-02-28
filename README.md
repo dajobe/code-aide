@@ -107,6 +107,32 @@ uv run pytest tests/ -v
 uv run pytest tests/test_install.py::TestDetectOsArch -v
 ```
 
+## Release
+
+`publish.yml` publishes to PyPI when a Git tag matching `v*` is pushed.
+
+1. Update version strings:
+   - `pyproject.toml` (`[project].version`)
+   - `src/code_aide/__init__.py` (`__version__`)
+2. Run checks:
+   - `uv run pytest tests/ -v`
+   - `uv build`
+3. Commit the release version bump:
+   - `git add pyproject.toml src/code_aide/__init__.py`
+   - `git commit -m "Bumped version to X.Y.Z"`
+4. Write useful commit messages before tagging:
+   - Start subject lines with an action verb in past tense (`Added`, `Changed`,
+     `Fixed`, `Removed`).
+   - Keep subjects user-facing so auto-generated release notes are meaningful.
+   - Group related changes into focused commits instead of one broad commit.
+   - Example: `Fixed timeout handling in status command`
+5. Tag and push:
+   - `git tag vX.Y.Z`
+   - `git push origin main --follow-tags`
+6. Confirm GitHub Actions:
+   - CI should pass.
+   - Publish workflow should upload to PyPI and create GitHub Release notes.
+
 ## License
 
 Apache-2.0
