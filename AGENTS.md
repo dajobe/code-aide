@@ -7,6 +7,9 @@
   user's local cache (~/.config/code-aide/versions.json)
 - All tests should pass before committing
 - Run `black` formatter on python before commits
+- Write useful commit messages: start subjects with past-tense action verbs
+  (`Added`, `Changed`, `Fixed`, `Removed`), keep them user-facing, and keep
+  commits focused.
 - Python 3.11+ compatible
 - Keep files under 300 lines where practical
 - Run `format-markdown` on markdown files before commits (if it is available)
