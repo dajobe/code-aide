@@ -111,14 +111,13 @@ uv run pytest tests/test_install.py::TestDetectOsArch -v
 
 `publish.yml` publishes to PyPI when a Git tag matching `v*` is pushed.
 
-1. Update version strings:
-   - `pyproject.toml` (`[project].version`)
-   - `src/code_aide/__init__.py` (`__version__`)
+1. Update the version string in `src/code_aide/__init__.py` (`__version__`).
+   `pyproject.toml` reads it automatically via Hatchling.
 2. Run checks:
    - `uv run pytest tests/ -v`
    - `uv build`
 3. Commit the release version bump:
-   - `git add pyproject.toml src/code_aide/__init__.py`
+   - `git add src/code_aide/__init__.py`
    - `git commit -m "Bumped version to X.Y.Z"`
 4. Write useful commit messages before tagging:
    - Start subject lines with an action verb in past tense (`Added`, `Changed`,

@@ -1,6 +1,6 @@
 [project]
 name = "code-aide"
-version = "1.0.3"
+dynamic = ["version"]
 description = "Manage AI coding CLI tools (Claude, Copilot, Cursor, Gemini, Amp, Codex)"
 readme = "README.md"
 authors = [
@@ -36,6 +36,9 @@ code-aide = "code_aide.__main__:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/code_aide/__init__.py"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
