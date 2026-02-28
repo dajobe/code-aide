@@ -2,10 +2,12 @@
 
 import contextlib
 import io
+import sys
 import unittest
 from unittest import mock
 
 from code_aide import commands_actions
+from code_aide import entry
 
 
 class TestCmdInstall(unittest.TestCase):
@@ -109,3 +111,18 @@ class TestCmdUpdateVersions(unittest.TestCase):
                 commands_actions.cmd_update_versions(args)
         self.assertIn("No upstream config changes detected.", buf.getvalue())
         mock_save.assert_not_called()
+
+
+class TestUpgradeNoArgsParsing(unittest.TestCase):
+    """Test that 'code-aide upgrade' with no arguments parses successfully."""
+
+    def test_upgrade_with_no_args_parses_to_empty_tools_list(self):
+        with (
+            mock.patch.object(sys, "argv", ["code-aide", "upgrade"]),
+            mock.patch.object(entry, "cmd_upgrade") as mock_upgrade,
+        ):
+            entry.main()
+        mock_upgrade.assert_called_once()
+        (args,) = mock_upgrade.call_args[0]
+        self.assertEqual(args.command, "upgrade")
+        self.assertEqual(args.tools, [])

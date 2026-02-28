@@ -40,7 +40,6 @@ def main() -> None:
     install_parser.add_argument(
         "tools",
         nargs="*",
-        choices=list(TOOLS.keys()),
         help="Tools to install (default: all)",
     )
     install_parser.add_argument(
@@ -62,8 +61,7 @@ def main() -> None:
     upgrade_parser.add_argument(
         "tools",
         nargs="*",
-        choices=list(TOOLS.keys()),
-        help="Tools to upgrade (default: all)",
+        help="Tools to upgrade (default: out-of-date only)",
     )
     upgrade_parser.set_defaults(func=cmd_upgrade)
 
@@ -71,7 +69,6 @@ def main() -> None:
     remove_parser.add_argument(
         "tools",
         nargs="*",
-        choices=list(TOOLS.keys()),
         help="Tools to remove (default: all)",
     )
     remove_parser.set_defaults(func=cmd_remove)
