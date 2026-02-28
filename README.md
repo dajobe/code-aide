@@ -36,7 +36,7 @@ code-aide install
 # Install with automatic prerequisite installation (Node.js, npm)
 code-aide install -p
 
-# Upgrade installed tools
+# Upgrade installed tools (no args = only out-of-date tools)
 code-aide upgrade [NAMES]
 
 # Remove tools
