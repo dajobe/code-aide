@@ -10,11 +10,37 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@v5
       - run: uv build
       - uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Build commit changelog
+        id: changelog
+        run: |
+          set -euo pipefail
+          current_tag="${GITHUB_REF_NAME}"
+          previous_tag="$(git describe --tags --abbrev=0 "${current_tag}^" 2>/dev/null || true)"
+
+          {
+            echo "body<<EOF"
+            echo "## Commits"
+            echo
+            if [ -n "${previous_tag}" ]; then
+              echo "Range: \`${previous_tag}..${current_tag}\`"
+              echo
+              git log --pretty=format:'* %s (%h)' "${previous_tag}..${current_tag}"
+            else
+              echo "First tagged release."
+              echo
+              git log --pretty=format:'* %s (%h)' "${current_tag}"
+            fi
+            echo
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
       - name: Create GitHub release notes
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           generate_release_notes: true
+          body: ${{ steps.changelog.outputs.body }}

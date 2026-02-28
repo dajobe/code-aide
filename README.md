@@ -132,6 +132,8 @@ uv run pytest tests/test_install.py::TestDetectOsArch -v
 6. Confirm GitHub Actions:
    - CI should pass.
    - Publish workflow should upload to PyPI and create GitHub Release notes.
+   - Release notes should include generated notes plus a commit summary from the
+     previous tag to the current tag.
 
 ## License
 
