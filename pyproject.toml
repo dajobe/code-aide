@@ -1,6 +1,6 @@
 [project]
 name = "code-aide"
-version = "1.0.2"
+version = "1.0.3"
 description = "Manage AI coding CLI tools (Claude, Copilot, Cursor, Gemini, Amp, Codex)"
 readme = "README.md"
 authors = [
