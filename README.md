@@ -96,6 +96,10 @@ a new code-aide release.
 ## Development
 
 ```bash
+# Run from development checkout
+uv run python -m code_aide status
+uv run python -m code_aide install copilot
+
 # Run tests
 uv run pytest tests/ -v
 
