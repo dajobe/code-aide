@@ -5,13 +5,13 @@ remove, status, and version metadata).
 
 ## Bugs
 
-- [ ] Standardize `--dryrun` flag: `update-versions` uses `--dry-run` but
+- [x] Standardize `--dryrun` flag: `update-versions` uses `--dry-run` but
   `install` uses `--dryrun`. Change `update-versions` to `--dryrun`.
-- [ ] Add missing `success()` message for direct-download installs in non-dryrun
+- [x] Add missing `success()` message for direct-download installs in non-dryrun
   mode (`install.py`, `install_tool()`).
-- [ ] Replace PID-based temp directory naming with `tempfile.mkdtemp()` in
+- [x] Replace PID-based temp directory naming with `tempfile.mkdtemp()` in
   `install.py` `install_direct_download()`.
-- [ ] Guard `package.split("/", 1)` in `detection.py`
+- [x] Guard `package.split("/", 1)` in `detection.py`
   `get_system_package_info()` against missing `/` in subprocess output.
 
 ## Reliability and Correctness

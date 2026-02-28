@@ -105,6 +105,9 @@ def get_system_package_info(binary_path: str) -> Dict[str, Optional[str]]:
     except Exception:
         pass
 
+    if "/" not in package:
+        return result
+
     category, package_name = package.split("/", 1)
     ebuild_dirs = globmod.glob(f"/var/db/repos/*/{category}/{package_name}/")
     ebuilds = []
