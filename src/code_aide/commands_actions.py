@@ -109,7 +109,7 @@ def cmd_install(args: argparse.Namespace) -> None:
                 print(f"  {tool_config['next_steps']}")
 
         print()
-        check_path_directories()
+        check_path_directories(installed)
         success("All installations completed successfully!")
 
 
