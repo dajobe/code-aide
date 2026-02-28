@@ -7,6 +7,7 @@ import platform
 import shutil
 import subprocess
 import tarfile
+import tempfile
 from typing import Any, Dict, Optional
 
 from code_aide.constants import TOOLS
@@ -162,8 +163,10 @@ def install_direct_download(
         tarball_data, _ = fetch_url(download_url, timeout=120)
         success(f"Downloaded {len(tarball_data)} bytes")
 
-        temp_dir = install_dir + f".tmp-{os.getpid()}"
-        os.makedirs(temp_dir, exist_ok=True)
+        install_parent = os.path.dirname(install_dir)
+        temp_dir = tempfile.mkdtemp(
+            prefix=os.path.basename(install_dir) + ".tmp-", dir=install_parent
+        )
 
         try:
             with tarfile.open(fileobj=io.BytesIO(tarball_data), mode="r:gz") as tf:
@@ -275,6 +278,7 @@ def install_tool(tool_name: str, dryrun: bool = False) -> bool:
                 if dryrun:
                     success(f"{tool_config['name']} verification passed")
                 else:
+                    success(f"{tool_config['name']} installed successfully")
                     info(tool_config["next_steps"])
                     if "docs_url" in tool_config:
                         info(f"Documentation: {tool_config['docs_url']}")
