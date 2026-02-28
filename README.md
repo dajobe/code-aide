@@ -3,7 +3,7 @@
 An aide for your AI coding tools.
 
 Manages installation, upgrade, removal, and version tracking of AI coding CLI
-tools: Claude Code, Cursor, Gemini, Amp, and Codex.
+tools: Claude Code, Copilot, Cursor, Gemini, Amp, and Codex.
 
 ## Installation
 
@@ -58,6 +58,7 @@ code-aide update-versions -y
 | Gemini CLI               | `gemini` | npm                | Yes     |
 | Amp (Sourcegraph)        | `amp`    | Script             | No      |
 | Codex CLI                | `codex`  | npm                | No      |
+| Copilot CLI              | `copilot`| npm                | No      |
 
 ## How Version Data Works
 

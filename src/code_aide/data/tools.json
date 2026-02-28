@@ -95,6 +95,24 @@
       "default_install": false,
       "latest_version": "0.106.0",
       "latest_date": "2026-02-26"
+    },
+    "copilot": {
+      "name": "Copilot CLI",
+      "command": "copilot",
+      "install_type": "npm",
+      "npm_package": "@github/copilot",
+      "prerequisites": [
+        "npm"
+      ],
+      "min_node_version": 22,
+      "next_steps": "Run 'copilot' and use '/login' to authenticate",
+      "version_args": [
+        "--version"
+      ],
+      "docs_url": "https://github.com/github/copilot-cli",
+      "default_install": false,
+      "latest_version": "0.0.420",
+      "latest_date": "2026-02-27"
     }
   }
 }

@@ -36,6 +36,7 @@ class TestLoadBundledTools(unittest.TestCase):
         self.assertIn("tools", bundled)
         tools = bundled["tools"]
         self.assertIn("claude", tools)
+        self.assertIn("copilot", tools)
         self.assertIn("gemini", tools)
         for tool_name, tool_data in tools.items():
             self.assertIn("name", tool_data)
