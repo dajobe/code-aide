@@ -127,7 +127,7 @@
       "prerequisites": [
         "npm"
       ],
-      "min_node_version": null,
+      "min_node_version": 18,
       "next_steps": "Run 'opencode' to start",
       "version_args": [
         "--version"
@@ -145,7 +145,7 @@
       "prerequisites": [
         "npm"
       ],
-      "min_node_version": null,
+      "min_node_version": 20,
       "next_steps": "Run 'kilo' to start",
       "version_args": [
         "--version"
