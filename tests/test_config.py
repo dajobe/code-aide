@@ -38,6 +38,8 @@ class TestLoadBundledTools(unittest.TestCase):
         self.assertIn("claude", tools)
         self.assertIn("copilot", tools)
         self.assertIn("gemini", tools)
+        self.assertIn("opencode", tools)
+        self.assertIn("kilo", tools)
         for tool_name, tool_data in tools.items():
             self.assertIn("name", tool_data)
             self.assertIn("command", tool_data)
