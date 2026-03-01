@@ -3,7 +3,7 @@
 An aide for your AI coding tools.
 
 Manages installation, upgrade, removal, and version tracking of AI coding CLI
-tools: Claude Code, Copilot, Cursor, Gemini, Amp, and Codex.
+tools: Claude Code, Copilot, Cursor, Gemini, Amp, Codex, OpenCode, and Kilo.
 
 ## Installation
 
@@ -54,14 +54,16 @@ code-aide update-versions -b -y
 
 ## Supported Tools
 
-| Tool                     | Command  | Install Type       | Default |
-|--------------------------|----------|--------------------|---------|
-| Cursor CLI               | `agent`  | Direct download    | Yes     |
-| Claude CLI (Claude Code) | `claude` | Self-managed (npm) | Yes     |
-| Gemini CLI               | `gemini` | npm                | Yes     |
-| Amp (Sourcegraph)        | `amp`    | Script             | No      |
-| Codex CLI                | `codex`  | npm                | No      |
-| Copilot CLI              | `copilot`| npm                | No      |
+| Tool                     | Command   | Install Type       | Default |
+|--------------------------|------------|--------------------|---------|
+| Cursor CLI               | `agent`    | Direct download    | Yes     |
+| Claude CLI (Claude Code) | `claude`   | Self-managed (npm) | Yes     |
+| Gemini CLI               | `gemini`   | npm                | Yes     |
+| OpenCode                  | `opencode`| npm                | Yes     |
+| Kilo CLI                  | `kilo`    | npm                | Yes     |
+| Amp (Sourcegraph)        | `amp`      | Script             | No      |
+| Codex CLI                 | `codex`   | npm                | No      |
+| Copilot CLI               | `copilot` | npm                | No      |
 
 ## How Version Data Works
 

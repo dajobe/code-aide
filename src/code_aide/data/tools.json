@@ -118,6 +118,42 @@
       "default_install": false,
       "latest_version": "0.0.420",
       "latest_date": "2026-02-27"
+    },
+    "opencode": {
+      "name": "OpenCode",
+      "command": "opencode",
+      "install_type": "npm",
+      "npm_package": "opencode-ai",
+      "prerequisites": [
+        "npm"
+      ],
+      "min_node_version": null,
+      "next_steps": "Run 'opencode' to start",
+      "version_args": [
+        "--version"
+      ],
+      "docs_url": "https://opencode.ai/docs/cli",
+      "default_install": true,
+      "latest_version": "1.2.15",
+      "latest_date": "2026-02-26"
+    },
+    "kilo": {
+      "name": "Kilo CLI",
+      "command": "kilo",
+      "install_type": "npm",
+      "npm_package": "@kilocode/cli",
+      "prerequisites": [
+        "npm"
+      ],
+      "min_node_version": null,
+      "next_steps": "Run 'kilo' to start",
+      "version_args": [
+        "--version"
+      ],
+      "docs_url": "https://kilo.ai/docs/cli",
+      "default_install": true,
+      "latest_version": "7.0.33",
+      "latest_date": "2026-02-27"
     }
   }
 }
