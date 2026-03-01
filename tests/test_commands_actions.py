@@ -124,7 +124,6 @@ class TestCmdUpdateVersions(unittest.TestCase):
         self.assertIn("No upstream config changes detected.", buf.getvalue())
         mock_save.assert_not_called()
 
-
     def test_bundled_flag_skips_cache_and_saves_to_bundled(self):
         args = type(
             "Args",
@@ -156,9 +155,7 @@ class TestCmdUpdateVersions(unittest.TestCase):
             mock.patch.object(
                 commands_actions, "load_versions_cache", return_value={}
             ) as mock_cache,
-            mock.patch.object(
-                commands_actions, "merge_cached_versions"
-            ) as mock_merge,
+            mock.patch.object(commands_actions, "merge_cached_versions") as mock_merge,
             mock.patch.object(
                 commands_actions,
                 "check_npm_tool",
