@@ -133,7 +133,7 @@
         "--version"
       ],
       "docs_url": "https://opencode.ai/docs/cli",
-      "default_install": true,
+      "default_install": false,
       "latest_version": "1.2.15",
       "latest_date": "2026-02-26"
     },
@@ -151,7 +151,7 @@
         "--version"
       ],
       "docs_url": "https://kilo.ai/docs/cli",
-      "default_install": true,
+      "default_install": false,
       "latest_version": "7.0.33",
       "latest_date": "2026-02-27"
     }

@@ -59,8 +59,8 @@ code-aide update-versions -b -y
 | Cursor CLI               | `agent`    | Direct download    | Yes     |
 | Claude CLI (Claude Code) | `claude`   | Self-managed (npm) | Yes     |
 | Gemini CLI               | `gemini`   | npm                | Yes     |
-| OpenCode                  | `opencode`| npm                | Yes     |
-| Kilo CLI                  | `kilo`    | npm                | Yes     |
+| OpenCode                  | `opencode`| npm                | No      |
+| Kilo CLI                  | `kilo`    | npm                | No      |
 | Amp (Sourcegraph)        | `amp`      | Script             | No      |
 | Codex CLI                 | `codex`   | npm                | No      |
 | Copilot CLI               | `copilot` | npm                | No      |
