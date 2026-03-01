@@ -1,0 +1,47 @@
+# GitLab CI for code-aide
+# Mirrors .github/workflows/ci.yml: pytest on Python 3.11, 3.12, 3.13
+
+variables:
+  UV_LINK_MODE: copy  # GitLab creates separate mountpoints for build dir
+  UV_CACHE_DIR: .uv-cache
+
+stages:
+  - test
+  - format
+
+.test_template: &test_template
+  stage: test
+  image: ghcr.io/astral-sh/uv:python${PYTHON_VERSION}-trixie-slim
+  cache:
+    key:
+      files:
+        - uv.lock
+    paths:
+      - ${UV_CACHE_DIR}
+  script:
+    - uv run pytest tests/ -v
+  after_script:
+    - uv cache prune --ci
+
+test:python3.11:
+  <<: *test_template
+  variables:
+    PYTHON_VERSION: "3.11"
+
+test:python3.12:
+  <<: *test_template
+  variables:
+    PYTHON_VERSION: "3.12"
+
+test:python3.13:
+  <<: *test_template
+  variables:
+    PYTHON_VERSION: "3.13"
+
+black:
+  stage: format
+  image: ghcr.io/astral-sh/uv:python3.12-trixie-slim
+  variables:
+    UV_LINK_MODE: copy
+  script:
+    - uv run black --check .
