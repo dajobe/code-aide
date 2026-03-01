@@ -2,8 +2,9 @@
 
 An aide for your AI coding tools.
 
-Manages installation, upgrade, removal, and version tracking of AI coding CLI
-tools: Claude Code, Copilot, Cursor, Gemini, Amp, Codex, OpenCode, and Kilo.
+Manages installation, upgrade, removal, and version tracking of AI coding
+CLI tools: Claude Code, Copilot, Cursor, Gemini, Amp, Codex, OpenCode, and
+Kilo.
 
 ## Installation
 
@@ -55,33 +56,34 @@ code-aide update-versions -b -y
 ## Supported Tools
 
 | Tool                     | Command   | Install Type       | Default |
-|--------------------------|------------|--------------------|---------|
-| Cursor CLI               | `agent`    | Direct download    | Yes     |
-| Claude CLI (Claude Code) | `claude`   | Self-managed (npm) | Yes     |
-| Gemini CLI               | `gemini`   | npm                | Yes     |
-| OpenCode                  | `opencode`| npm                | No      |
-| Kilo CLI                  | `kilo`    | npm                | No      |
-| Amp (Sourcegraph)        | `amp`      | Script             | No      |
-| Codex CLI                 | `codex`   | npm                | No      |
-| Copilot CLI               | `copilot` | npm                | No      |
+|--------------------------|-----------|--------------------|---------|
+| Cursor CLI               | `agent`   | Direct download    | Yes     |
+| Claude CLI (Claude Code) | `claude`  | Self-managed (npm) | Yes     |
+| Gemini CLI               | `gemini`  | npm                | Yes     |
+| OpenCode                 | `opencode`| npm                | No      |
+| Kilo CLI                 | `kilo`    | npm                | No      |
+| Amp (Sourcegraph)        | `amp`     | Script             | No      |
+| Codex CLI                | `codex`   | npm                | No      |
+| Copilot CLI              | `copilot` | npm                | No      |
 
 ## How Version Data Works
 
 code-aide uses a three-layer version data model:
 
-1. **Tool definitions** (bundled with the package): Install methods, URLs, npm
-   packages, version args. Updated by releasing new versions of code-aide.
+1. **Tool definitions** (bundled with the package): Install methods,
+   URLs, npm packages, version args. Updated by releasing new versions
+   of code-aide.
 
-2. **Bundled version baseline** (in `data/tools.json`): Latest versions and
-   SHA256 hashes as known at release time. Acts as a fallback for fresh
-   installs.
+2. **Bundled version baseline** (in `data/tools.json`): Latest
+   versions and SHA256 hashes as known at release time. Acts as a
+   fallback for fresh installs.
 
-3. **User's local version cache** (`~/.config/code-aide/versions.json`): Written
-   by `code-aide update-versions`. Takes precedence over bundled data when
-   present.
+3. **User's local version cache**
+   (`~/.config/code-aide/versions.json`): Written by `code-aide
+   update-versions`. Takes precedence over bundled data when present.
 
-Run `code-aide update-versions` to get fresher version data without waiting for
-a new code-aide release.
+Run `code-aide update-versions` to get fresher version data without
+waiting for a new code-aide release.
 
 ## Features
 
@@ -131,7 +133,8 @@ uv run pytest tests/test_install.py::TestDetectOsArch -v
 5. Write useful commit messages before tagging:
    - Start subject lines with an action verb in past tense (`Added`, `Changed`,
      `Fixed`, `Removed`).
-   - Keep subjects user-facing so auto-generated release notes are meaningful.
+   - Keep subjects user-facing so auto-generated release notes are
+     meaningful.
    - Group related changes into focused commits instead of one broad commit.
    - Example: `Fixed timeout handling in status command`
 6. Tag and push:
@@ -140,8 +143,8 @@ uv run pytest tests/test_install.py::TestDetectOsArch -v
 7. Confirm GitHub Actions:
    - CI should pass.
    - Publish workflow should upload to PyPI and create GitHub Release notes.
-   - Release notes should include generated notes plus a commit summary from the
-     previous tag to the current tag.
+   - Release notes should include generated notes plus a commit summary from
+     the previous tag to the current tag.
 
 ## License
 
