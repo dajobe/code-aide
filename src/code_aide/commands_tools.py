@@ -8,6 +8,7 @@ from typing import List
 from code_aide.constants import Colors, PACKAGE_MANAGERS, TOOLS
 from code_aide.detection import (
     format_install_method,
+    format_migration_warning,
     get_system_package_info,
     detect_install_method,
 )
@@ -48,6 +49,9 @@ def cmd_list(args: argparse.Namespace) -> None:
                 "  Installed via: "
                 f"{format_install_method(install_info['method'], install_info['detail'])}"
             )
+            migration_msg = format_migration_warning(tool_name)
+            if migration_msg:
+                warning(f"  {migration_msg}")
 
         if tool_config.get("min_node_version"):
             print(f"  Requires:     Node.js v{tool_config['min_node_version']}+")
@@ -99,6 +103,7 @@ def cmd_status(args: argparse.Namespace) -> None:
     print()
 
     outdated_count = 0
+    migration_count = 0
     config_outdated: List[str] = []
 
     for tool_name, tool_config in TOOLS.items():
@@ -156,6 +161,10 @@ def cmd_status(args: argparse.Namespace) -> None:
                     "  Installed via: "
                     f"{format_install_method(install_info['method'], install_info['detail'])}"
                 )
+                migration_msg = format_migration_warning(tool_name)
+                if migration_msg:
+                    warning(f"  {migration_msg}")
+                    migration_count += 1
 
             if status["user"]:
                 print(f"  User:         {status['user']}")
@@ -180,4 +189,9 @@ def cmd_status(args: argparse.Namespace) -> None:
         print(
             f"{Colors.YELLOW}{outdated_count} tool(s) can be upgraded with "
             f"'code-aide upgrade'.{Colors.NC}"
+        )
+    if migration_count > 0:
+        print(
+            f"{Colors.YELLOW}{migration_count} tool(s) need migration to a "
+            f"new install method. Run 'code-aide upgrade' to migrate.{Colors.NC}"
         )

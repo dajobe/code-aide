@@ -114,3 +114,173 @@ class TestFormatInstallMethodScript(unittest.TestCase):
             cli_detection.format_install_method("script", None),
             "script",
         )
+
+
+class TestIsDeprecatedInstall(unittest.TestCase):
+    """Tests for is_deprecated_install."""
+
+    def test_npm_to_script_is_deprecated(self):
+        """npm detected but configured as script -> deprecated."""
+        tool_config = {
+            "name": "Test Tool",
+            "command": "test-tool",
+            "install_type": "script",
+        }
+        with (
+            mock.patch.dict(cli_detection.TOOLS, {"test": tool_config}, clear=True),
+            mock.patch.object(
+                cli_detection,
+                "detect_install_method",
+                return_value={"method": "npm", "detail": "test-pkg"},
+            ),
+        ):
+            self.assertTrue(cli_detection.is_deprecated_install("test"))
+
+    def test_npm_to_direct_download_is_deprecated(self):
+        """npm detected but configured as direct_download -> deprecated."""
+        tool_config = {
+            "name": "Test Tool",
+            "command": "test-tool",
+            "install_type": "direct_download",
+        }
+        with (
+            mock.patch.dict(cli_detection.TOOLS, {"test": tool_config}, clear=True),
+            mock.patch.object(
+                cli_detection,
+                "detect_install_method",
+                return_value={"method": "npm", "detail": "test-pkg"},
+            ),
+        ):
+            self.assertTrue(cli_detection.is_deprecated_install("test"))
+
+    def test_brew_npm_to_script_is_deprecated(self):
+        """brew_npm detected but configured as script -> deprecated."""
+        tool_config = {
+            "name": "Test Tool",
+            "command": "test-tool",
+            "install_type": "script",
+        }
+        with (
+            mock.patch.dict(cli_detection.TOOLS, {"test": tool_config}, clear=True),
+            mock.patch.object(
+                cli_detection,
+                "detect_install_method",
+                return_value={"method": "brew_npm", "detail": "test-pkg"},
+            ),
+        ):
+            self.assertTrue(cli_detection.is_deprecated_install("test"))
+
+    def test_npm_to_npm_not_deprecated(self):
+        """npm detected and configured as npm -> not deprecated."""
+        tool_config = {
+            "name": "Test Tool",
+            "command": "test-tool",
+            "install_type": "npm",
+        }
+        with (
+            mock.patch.dict(cli_detection.TOOLS, {"test": tool_config}, clear=True),
+            mock.patch.object(
+                cli_detection,
+                "detect_install_method",
+                return_value={"method": "npm", "detail": "test-pkg"},
+            ),
+        ):
+            self.assertFalse(cli_detection.is_deprecated_install("test"))
+
+    def test_brew_formula_never_deprecated(self):
+        """brew_formula is user-managed, never deprecated."""
+        tool_config = {
+            "name": "Test Tool",
+            "command": "test-tool",
+            "install_type": "script",
+        }
+        with (
+            mock.patch.dict(cli_detection.TOOLS, {"test": tool_config}, clear=True),
+            mock.patch.object(
+                cli_detection,
+                "detect_install_method",
+                return_value={"method": "brew_formula", "detail": "test"},
+            ),
+        ):
+            self.assertFalse(cli_detection.is_deprecated_install("test"))
+
+    def test_system_never_deprecated(self):
+        """system is user-managed, never deprecated."""
+        tool_config = {
+            "name": "Test Tool",
+            "command": "test-tool",
+            "install_type": "script",
+        }
+        with (
+            mock.patch.dict(cli_detection.TOOLS, {"test": tool_config}, clear=True),
+            mock.patch.object(
+                cli_detection,
+                "detect_install_method",
+                return_value={"method": "system", "detail": "/usr/bin/test-tool"},
+            ),
+        ):
+            self.assertFalse(cli_detection.is_deprecated_install("test"))
+
+    def test_not_installed_not_deprecated(self):
+        """Tool not installed (method=None) -> not deprecated."""
+        tool_config = {
+            "name": "Test Tool",
+            "command": "test-tool",
+            "install_type": "script",
+        }
+        with (
+            mock.patch.dict(cli_detection.TOOLS, {"test": tool_config}, clear=True),
+            mock.patch.object(
+                cli_detection,
+                "detect_install_method",
+                return_value={"method": None, "detail": None},
+            ),
+        ):
+            self.assertFalse(cli_detection.is_deprecated_install("test"))
+
+    def test_unknown_tool_not_deprecated(self):
+        """Unknown tool name -> not deprecated."""
+        with mock.patch.dict(cli_detection.TOOLS, {}, clear=True):
+            self.assertFalse(cli_detection.is_deprecated_install("no-such-tool"))
+
+
+class TestFormatMigrationWarning(unittest.TestCase):
+    """Tests for format_migration_warning."""
+
+    def test_returns_warning_for_deprecated(self):
+        """Returns a warning string when install is deprecated."""
+        tool_config = {
+            "name": "Test Tool",
+            "command": "test-tool",
+            "install_type": "script",
+        }
+        with (
+            mock.patch.dict(cli_detection.TOOLS, {"test": tool_config}, clear=True),
+            mock.patch.object(
+                cli_detection,
+                "detect_install_method",
+                return_value={"method": "npm", "detail": "test-pkg"},
+            ),
+        ):
+            msg = cli_detection.format_migration_warning("test")
+            self.assertIsNotNone(msg)
+            self.assertIn("npm", msg)
+            self.assertIn("script", msg)
+            self.assertIn("code-aide upgrade test", msg)
+
+    def test_returns_none_when_not_deprecated(self):
+        """Returns None when install is not deprecated."""
+        tool_config = {
+            "name": "Test Tool",
+            "command": "test-tool",
+            "install_type": "npm",
+        }
+        with (
+            mock.patch.dict(cli_detection.TOOLS, {"test": tool_config}, clear=True),
+            mock.patch.object(
+                cli_detection,
+                "detect_install_method",
+                return_value={"method": "npm", "detail": "test-pkg"},
+            ),
+        ):
+            self.assertIsNone(cli_detection.format_migration_warning("test"))

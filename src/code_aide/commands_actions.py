@@ -5,6 +5,7 @@ import sys
 from typing import Any, Dict, List
 
 from code_aide.constants import TOOLS
+from code_aide.detection import is_deprecated_install
 from code_aide.install import install_tool
 from code_aide.console import error, info, success, warning
 from code_aide.operations import remove_tool, upgrade_tool, validate_tools
@@ -122,6 +123,10 @@ def cmd_upgrade(args: argparse.Namespace) -> None:
         tools_to_upgrade = []
         for name, config in TOOLS.items():
             if not is_tool_installed(name):
+                continue
+            if is_deprecated_install(name):
+                if name not in tools_to_upgrade:
+                    tools_to_upgrade.append(name)
                 continue
             latest = config.get("latest_version")
             if not latest:

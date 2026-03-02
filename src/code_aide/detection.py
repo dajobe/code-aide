@@ -186,3 +186,63 @@ def format_install_method(method: Optional[str], detail: Optional[str]) -> str:
     if method:
         return method
     return "unknown"
+
+
+# Install methods that are user-managed and never considered deprecated
+_USER_MANAGED_METHODS = frozenset({"brew_formula", "brew_cask", "system"})
+
+# Install methods that are considered deprecated when they don't match
+# the configured install_type
+_DEPRECATED_METHODS = frozenset({"npm", "brew_npm"})
+
+
+def is_deprecated_install(tool_name: str) -> bool:
+    """Check if a tool's detected install method is deprecated.
+
+    Returns True when the detected install method is npm or brew_npm
+    but the configured install_type is something else (e.g. script,
+    direct_download).  Brew formula/cask and system installs are
+    user-managed and never considered deprecated.
+    """
+    tool_config = TOOLS.get(tool_name)
+    if not tool_config:
+        return False
+
+    install_info = detect_install_method(tool_name)
+    detected = install_info["method"]
+
+    if not detected:
+        return False
+
+    if detected in _USER_MANAGED_METHODS:
+        return False
+
+    configured = tool_config.get("install_type")
+    if not configured:
+        return False
+
+    if detected in _DEPRECATED_METHODS and detected != configured:
+        return True
+
+    return False
+
+
+def format_migration_warning(tool_name: str) -> Optional[str]:
+    """Return a human-readable migration warning, or None if not needed."""
+    if not is_deprecated_install(tool_name):
+        return None
+
+    tool_config = TOOLS.get(tool_name)
+    if not tool_config:
+        return None
+
+    install_info = detect_install_method(tool_name)
+    detected_label = format_install_method(
+        install_info["method"], install_info["detail"]
+    )
+    configured_label = format_install_method(tool_config["install_type"], None)
+
+    return (
+        f"Installed via {detected_label} but configured method is "
+        f"{configured_label}. Run 'code-aide upgrade {tool_name}' to migrate."
+    )

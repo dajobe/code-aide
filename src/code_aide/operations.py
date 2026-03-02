@@ -8,10 +8,46 @@ import sys
 from typing import List
 
 from code_aide.constants import TOOLS
-from code_aide.detection import detect_install_method
-from code_aide.install import install_direct_download, run_install_script
+from code_aide.detection import (
+    detect_install_method,
+    format_install_method,
+    is_deprecated_install,
+)
+from code_aide.install import install_direct_download, install_tool, run_install_script
 from code_aide.console import error, info, run_command, success, warning
 from code_aide.prereqs import is_tool_installed
+
+
+def _migrate_install_method(tool_name: str) -> bool:
+    """Migrate a tool from a deprecated install method to the configured one."""
+    tool_config = TOOLS[tool_name]
+    install_info = detect_install_method(tool_name)
+    old_label = format_install_method(install_info["method"], install_info["detail"])
+    new_label = format_install_method(tool_config["install_type"], None)
+
+    warning(
+        f"{tool_config['name']} is installed via {old_label} "
+        f"but the configured method is {new_label}."
+    )
+    info(f"Migrating {tool_config['name']} from {old_label} to {new_label}...")
+
+    if not remove_tool(tool_name):
+        error(
+            f"Failed to remove old {old_label} install of {tool_config['name']}. "
+            "Migration aborted."
+        )
+        return False
+
+    if not install_tool(tool_name):
+        error(f"Failed to install {tool_config['name']} via {new_label}.")
+        error(
+            f"The old {old_label} install has been removed. "
+            f"To recover, run: code-aide install {tool_name}"
+        )
+        return False
+
+    success(f"{tool_config['name']} migrated from {old_label} to {new_label}")
+    return True
 
 
 def upgrade_tool(tool_name: str) -> bool:
@@ -24,6 +60,9 @@ def upgrade_tool(tool_name: str) -> bool:
     if not is_tool_installed(tool_name):
         warning(f"{tool_config['name']} is not installed. Use 'install' command first.")
         return False
+
+    if is_deprecated_install(tool_name):
+        return _migrate_install_method(tool_name)
 
     install_info = detect_install_method(tool_name)
     method = install_info["method"]
