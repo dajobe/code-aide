@@ -1,47 +1,26 @@
-# GitLab CI for code-aide
-# Mirrors .github/workflows/ci.yml: pytest on Python 3.11, 3.12, 3.13
+# GitLab CI - same checks as GitHub Actions
+# Uses Astral's uv Docker images with UV_LINK_MODE=copy (required for GitLab CI)
 
 variables:
-  UV_LINK_MODE: copy  # GitLab creates separate mountpoints for build dir
-  UV_CACHE_DIR: .uv-cache
+  UV_LINK_MODE: copy
 
-stages:
-  - test
-  - format
-
-.test_template: &test_template
-  stage: test
-  image: ghcr.io/astral-sh/uv:python${PYTHON_VERSION}-trixie-slim
-  cache:
-    key:
-      files:
-        - uv.lock
-    paths:
-      - ${UV_CACHE_DIR}
+.check_template: &check_definition
+  before_script:
+    - uv lock --check
+    - uv sync --locked
   script:
-    - uv run pytest tests/ -v
-  after_script:
-    - uv cache prune --ci
-
-test:python3.11:
-  <<: *test_template
-  variables:
-    PYTHON_VERSION: "3.11"
-
-test:python3.12:
-  <<: *test_template
-  variables:
-    PYTHON_VERSION: "3.12"
-
-test:python3.13:
-  <<: *test_template
-  variables:
-    PYTHON_VERSION: "3.13"
-
-black:
-  stage: format
-  image: ghcr.io/astral-sh/uv:python3.12-trixie-slim
-  variables:
-    UV_LINK_MODE: copy
-  script:
+    - uv run ruff check .
     - uv run black --check .
+    - uv run pytest tests/ -v
+
+check:python3.11:
+  <<: *check_definition
+  image: ghcr.io/astral-sh/uv:python3.11-trixie-slim
+
+check:python3.12:
+  <<: *check_definition
+  image: ghcr.io/astral-sh/uv:python3.12-trixie-slim
+
+check:python3.13:
+  <<: *check_definition
+  image: ghcr.io/astral-sh/uv:python3.13-trixie-slim
