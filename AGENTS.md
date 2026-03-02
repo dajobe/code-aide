@@ -3,11 +3,11 @@
 ## Key Design Decisions
 
 - No external dependencies - stdlib only
-- Three-layer version data: bundled definitions, bundled baseline versions,
+- Two-layer version data: bundled definitions (with SHA256 checksums),
   user's local cache (~/.config/code-aide/versions.json)
 - All tests should pass before committing
-- pre-commit runs black and ruff on commit; run `pre-commit run --all-files`
-  to check before committing
+- pre-commit runs black and ruff on commit; run `black` to format and then
+ `pre-commit run --all-files` to check before committing
 - When changing pyproject.toml dependencies, run `uv lock` and commit
   uv.lock
 - Write useful commit messages: start subjects with past-tense action verbs

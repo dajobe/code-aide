@@ -100,12 +100,6 @@ def main() -> None:
         action="store_true",
         help="Show full SHA256 hashes",
     )
-    update_versions_parser.add_argument(
-        "-b",
-        "--bundled",
-        action="store_true",
-        help="Update bundled data/tools.json instead of user cache (developer use)",
-    )
     update_versions_parser.set_defaults(func=cmd_update_versions)
 
     args = parser.parse_args()

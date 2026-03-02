@@ -62,7 +62,6 @@ class TestCmdUpdateVersions(unittest.TestCase):
                 "dryrun": False,
                 "yes": False,
                 "verbose": False,
-                "bundled": False,
             },
         )()
         with mock.patch.object(
@@ -84,7 +83,6 @@ class TestCmdUpdateVersions(unittest.TestCase):
                 "dryrun": True,
                 "yes": False,
                 "verbose": False,
-                "bundled": False,
             },
         )()
         with (
@@ -123,65 +121,6 @@ class TestCmdUpdateVersions(unittest.TestCase):
                 commands_actions.cmd_update_versions(args)
         self.assertIn("No upstream config changes detected.", buf.getvalue())
         mock_save.assert_not_called()
-
-    def test_bundled_flag_skips_cache_and_saves_to_bundled(self):
-        args = type(
-            "Args",
-            (),
-            {
-                "tools": [],
-                "dryrun": False,
-                "yes": True,
-                "verbose": False,
-                "bundled": True,
-            },
-        )()
-        bundled_tools = {
-            "tools": {
-                "ok": {
-                    "install_type": "npm",
-                    "npm_package": "pkg",
-                    "latest_version": "1.0.0",
-                    "latest_date": "2026-01-01",
-                }
-            }
-        }
-        with (
-            mock.patch.object(
-                commands_actions,
-                "load_bundled_tools",
-                return_value=bundled_tools,
-            ),
-            mock.patch.object(
-                commands_actions, "load_versions_cache", return_value={}
-            ) as mock_cache,
-            mock.patch.object(commands_actions, "merge_cached_versions") as mock_merge,
-            mock.patch.object(
-                commands_actions,
-                "check_npm_tool",
-                return_value={
-                    "tool": "ok",
-                    "type": "npm",
-                    "version": "2.0.0",
-                    "date": "2026-02-01",
-                    "status": "ok",
-                    "update": None,
-                },
-            ),
-            mock.patch.object(commands_actions, "print_check_results_table"),
-            mock.patch.object(commands_actions, "save_updated_versions") as mock_save,
-            mock.patch.object(
-                commands_actions, "save_bundled_versions", return_value="/fake/path"
-            ) as mock_bundled,
-        ):
-            buf = io.StringIO()
-            with contextlib.redirect_stdout(buf):
-                commands_actions.cmd_update_versions(args)
-
-        mock_cache.assert_not_called()
-        mock_merge.assert_not_called()
-        mock_save.assert_not_called()
-        mock_bundled.assert_called_once()
 
 
 class TestUpgradeNoArgsParsing(unittest.TestCase):

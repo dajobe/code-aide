@@ -26,7 +26,6 @@ from code_aide.config import (
     load_bundled_tools,
     load_versions_cache,
     merge_cached_versions,
-    save_bundled_versions,
     save_updated_versions,
 )
 
@@ -234,8 +233,7 @@ def cmd_update_versions(args: argparse.Namespace) -> None:
     """Handle update-versions command: check upstream for latest tool versions."""
     bundled = load_bundled_tools()
     tools = bundled.get("tools", {})
-    if not args.bundled:
-        merge_cached_versions(tools, load_versions_cache())
+    merge_cached_versions(tools, load_versions_cache())
 
     config: Dict[str, Any] = {"tools": tools}
 
@@ -293,10 +291,7 @@ def cmd_update_versions(args: argparse.Namespace) -> None:
                 version_info_changed = True
 
     def _save(tools: dict) -> str:
-        """Save versions to bundled or user cache. Returns description."""
-        if args.bundled:
-            path = save_bundled_versions(tools)
-            return path
+        """Save versions to user cache. Returns description."""
         save_updated_versions(tools)
         return "~/.config/code-aide/versions.json"
 

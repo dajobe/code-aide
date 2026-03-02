@@ -21,9 +21,7 @@
         "--version"
       ],
       "docs_url": "https://docs.cursor.com/",
-      "default_install": true,
-      "latest_version": "2026.02.27-e7d2ef6",
-      "latest_date": "2026-02-27"
+      "default_install": true
     },
     "claude": {
       "name": "Claude CLI (Claude Code)",
@@ -38,9 +36,7 @@
         "--version"
       ],
       "docs_url": "https://code.claude.com/docs/en/setup",
-      "default_install": true,
-      "latest_version": "2.1.63",
-      "latest_date": "2026-02-28"
+      "default_install": true
     },
     "gemini": {
       "name": "Gemini CLI",
@@ -56,9 +52,7 @@
         "--version"
       ],
       "docs_url": "https://github.com/google-gemini/gemini-cli",
-      "default_install": true,
-      "latest_version": "0.31.0",
-      "latest_date": "2026-02-27"
+      "default_install": true
     },
     "amp": {
       "name": "Amp (Sourcegraph)",
@@ -74,9 +68,7 @@
         "--version"
       ],
       "docs_url": "https://ampcode.com/manual",
-      "default_install": false,
-      "latest_version": "0.0.1772425842-gc8e938",
-      "latest_date": "2026-03-02"
+      "default_install": false
     },
     "codex": {
       "name": "Codex CLI",
@@ -92,9 +84,7 @@
         "--version"
       ],
       "docs_url": "https://github.com/openai/codex",
-      "default_install": false,
-      "latest_version": "0.106.0",
-      "latest_date": "2026-02-26"
+      "default_install": false
     },
     "copilot": {
       "name": "Copilot CLI",
@@ -110,9 +100,7 @@
         "--version"
       ],
       "docs_url": "https://github.com/github/copilot-cli",
-      "default_install": false,
-      "latest_version": "0.0.420",
-      "latest_date": "2026-02-27"
+      "default_install": false
     },
     "opencode": {
       "name": "OpenCode",
@@ -128,9 +116,7 @@
         "--version"
       ],
       "docs_url": "https://opencode.ai/docs/cli",
-      "default_install": false,
-      "latest_version": "1.2.15",
-      "latest_date": "2026-02-26"
+      "default_install": false
     },
     "kilo": {
       "name": "Kilo CLI",
@@ -146,9 +132,7 @@
         "--version"
       ],
       "docs_url": "https://kilo.ai/docs/cli",
-      "default_install": false,
-      "latest_version": "7.0.33",
-      "latest_date": "2026-02-27"
+      "default_install": false
     }
   }
 }

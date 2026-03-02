@@ -48,9 +48,6 @@ code-aide update-versions -n
 
 # Update version cache
 code-aide update-versions -y
-
-# Update bundled version baseline (developer use, before releases)
-code-aide update-versions -b -y
 ```
 
 ## Supported Tools
@@ -68,22 +65,18 @@ code-aide update-versions -b -y
 
 ## How Version Data Works
 
-code-aide uses a three-layer version data model:
+code-aide uses a two-layer version data model:
 
-1. **Tool definitions** (bundled with the package): Install methods, URLs,
-   npm packages, version args. Updated by releasing new versions of
-   code-aide.
+1. **Bundled tool definitions** (in `data/tools.json`): Install methods,
+   URLs, npm packages, version args, and SHA256 checksums. Updated by
+   releasing new versions of code-aide.
 
-2. **Bundled version baseline** (in `data/tools.json`): Latest versions and
-   SHA256 hashes as known at release time. Acts as a fallback for fresh
-   installs.
+2. **User's local version cache** (`~/.config/code-aide/versions.json`):
+   Written by `code-aide update-versions`. Provides latest versions, dates,
+   and updated SHA256 checksums.
 
-3. **User's local version cache** (`~/.config/code-aide/versions.json`):
-   Written by `code-aide update-versions`. Takes precedence over bundled
-   data when present.
-
-Run `code-aide update-versions` to get fresher version data without waiting
-for a new code-aide release.
+Run `code-aide update-versions` to get the latest version data without
+waiting for a new code-aide release.
 
 ## Features
 
@@ -121,29 +114,25 @@ uv run pytest tests/test_install.py::TestDetectOsArch -v
 
 `publish.yml` publishes to PyPI when a Git tag matching `v*` is pushed.
 
-1. Update the bundled version baseline:
-   - `code-aide update-versions -b -y`
-   - `git add src/code_aide/data/tools.json`
-   - `git commit -m "Updated bundled version data"`
-2. Update the version string in `src/code_aide/__init__.py` (`__version__`).
+1. Update the version string in `src/code_aide/__init__.py` (`__version__`).
    `pyproject.toml` reads it automatically via Hatchling.
-3. Run checks:
+2. Run checks:
    - `uv run pytest tests/ -v`
    - `uv build`
-4. Commit the release version bump:
+3. Commit the release version bump:
    - `git add src/code_aide/__init__.py`
    - `git commit -m "Bumped version to X.Y.Z"`
-5. Write useful commit messages before tagging:
+4. Write useful commit messages before tagging:
    - Start subject lines with an action verb in past tense (`Added`,
      `Changed`, `Fixed`, `Removed`).
    - Keep subjects user-facing so auto-generated release notes are
      meaningful.
    - Group related changes into focused commits instead of one broad commit.
    - Example: `Fixed timeout handling in status command`
-6. Tag and push:
+5. Tag and push:
    - `git tag vX.Y.Z`
    - `git push origin main --follow-tags`
-7. Confirm GitHub Actions:
+6. Confirm GitHub Actions:
    - CI should pass.
    - Publish workflow should upload to PyPI and create GitHub Release notes.
    - Release notes should include generated notes plus a commit summary from

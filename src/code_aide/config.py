@@ -76,10 +76,10 @@ def merge_cached_versions(tools: dict, cache: dict) -> None:
 def load_tools_config() -> dict:
     """Load tool config: bundled definitions merged with cached versions.
 
-    The bundled tools.json provides all tool definitions plus a baseline
-    for latest_version, latest_date, and install_sha256. The user's
-    version cache (from update-versions) overrides these dynamic fields
-    when present.
+    Two-layer model: the bundled tools.json provides tool definitions and
+    install_sha256 checksums. The user's version cache (from
+    update-versions) provides latest_version, latest_date, and updated
+    install_sha256 values when present.
     """
     bundled = load_bundled_tools()
     cache = load_versions_cache()
@@ -103,29 +103,3 @@ def save_updated_versions(tools: dict) -> None:
         if entry:
             cache_data["tools"][tool_key] = entry
     save_versions_cache(cache_data)
-
-
-def save_bundled_versions(tools: dict) -> str:
-    """Update dynamic fields in the bundled data/tools.json.
-
-    Loads the existing bundled file to preserve static fields, then
-    overwrites only the dynamic version fields from the provided tools
-    dict.  Returns the file path written.
-    """
-    ref = importlib.resources.files("code_aide").joinpath("data/tools.json")
-    path = str(ref)
-
-    with open(path, encoding="utf-8") as f:
-        bundled = json.load(f)
-
-    for tool_key, tool_data in tools.items():
-        if tool_key in bundled.get("tools", {}):
-            for field in DYNAMIC_FIELDS:
-                if field in tool_data:
-                    bundled["tools"][tool_key][field] = tool_data[field]
-
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(bundled, f, indent=2)
-        f.write("\n")
-
-    return path

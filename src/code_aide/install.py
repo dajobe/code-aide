@@ -12,7 +12,7 @@ from typing import Any, Dict, Optional
 
 from code_aide.constants import TOOLS
 from code_aide.console import command_exists, error, info, run_command, success, warning
-from code_aide.versions import fetch_url
+from code_aide.versions import check_script_tool, fetch_url
 
 
 def run_install_script(
@@ -117,7 +117,17 @@ def install_direct_download(
 ) -> bool:
     """Download, extract, and install a tool via direct tarball download."""
     try:
-        version = tool_config["latest_version"]
+        version = tool_config.get("latest_version")
+        if not version:
+            info("No cached version found, fetching latest version...")
+            result = check_script_tool(tool_name, tool_config)
+            version = result.get("version")
+            if not version or version == "-":
+                error(
+                    f"Could not determine latest version for {tool_name}. "
+                    "Run 'code-aide update-versions -y' first."
+                )
+                return False
         install_url = tool_config["install_url"]
         expected_sha256 = tool_config.get("install_sha256")
 
