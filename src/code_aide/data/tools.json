@@ -75,8 +75,8 @@
       ],
       "docs_url": "https://ampcode.com/manual",
       "default_install": false,
-      "latest_version": "0.0.1772339780-g24a24e",
-      "latest_date": "2026-03-01"
+      "latest_version": "0.0.1772425842-gc8e938",
+      "latest_date": "2026-03-02"
     },
     "codex": {
       "name": "Codex CLI",
