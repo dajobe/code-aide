@@ -102,13 +102,15 @@ waiting for a new code-aide release.
 
 ## Development
 
+1. Install uv: `curl -LsSf https://astral.sh/uv/install.sh | sh`
+2. Install dependencies: `uv sync`
+3. Install pre-commit hooks: `uv tool install pre-commit && pre-commit install`
+4. Run tests: `uv run pytest tests/ -v`
+
 ```bash
 # Run from development checkout
 uv run python -m code_aide status
 uv run python -m code_aide install copilot
-
-# Run tests
-uv run pytest tests/ -v
 
 # Run a specific test
 uv run pytest tests/test_install.py::TestDetectOsArch -v

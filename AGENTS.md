@@ -6,7 +6,9 @@
 - Three-layer version data: bundled definitions, bundled baseline versions,
   user's local cache (~/.config/code-aide/versions.json)
 - All tests should pass before committing
-- Run `black` formatter on python before commits
+- pre-commit runs black and ruff on commit; run `pre-commit run --all-files` to
+  check before committing
+- When changing pyproject.toml dependencies, run `uv lock` and commit uv.lock
 - Write useful commit messages: start subjects with past-tense action verbs
   (`Added`, `Changed`, `Fixed`, `Removed`), keep them user-facing, and keep
   commits focused.
