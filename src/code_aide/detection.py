@@ -32,6 +32,9 @@ def detect_install_method(tool_name: str) -> Dict[str, Optional[str]]:
     if caskroom_match:
         return {"method": "brew_cask", "detail": caskroom_match.group(1)}
 
+    if "/.local/share/claude/versions/" in real_path:
+        return {"method": "script", "detail": "native installer"}
+
     if "/node_modules/" in real_path:
         npm_package = tool_config.get("npm_package")
         if not npm_package:
@@ -180,8 +183,6 @@ def format_install_method(method: Optional[str], detail: Optional[str]) -> str:
         return "script"
     if method == "direct_download":
         return "direct download"
-    if method == "self_managed":
-        return "self-managed"
     if method:
         return method
     return "unknown"

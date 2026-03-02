@@ -62,14 +62,6 @@ def upgrade_tool(tool_name: str) -> bool:
             if not install_direct_download(tool_name, tool_config):
                 return False
 
-        elif method == "self_managed":
-            upgrade_cmd = tool_config.get("upgrade_command")
-            if not upgrade_cmd:
-                error(f"No upgrade_command configured for {tool_config['name']}")
-                return False
-            run_command(upgrade_cmd, check=True, capture=False)
-            success(f"{tool_config['name']} upgraded successfully")
-
         elif method == "system":
             error(
                 f"{tool_config['name']} is managed by the system package manager. "
@@ -157,6 +149,12 @@ def remove_tool(tool_name: str) -> bool:
                 warning(f"Could not find {command} binary to remove")
                 return True
 
+            if tool_name == "claude":
+                claude_data = os.path.expanduser("~/.local/share/claude")
+                if os.path.isdir(claude_data):
+                    shutil.rmtree(claude_data)
+                    info(f"Removed data directory: {claude_data}")
+
         elif method == "direct_download":
             bin_dir = os.path.expanduser(tool_config.get("bin_dir", "~/.local/bin"))
             removed_links = set()
@@ -199,35 +197,6 @@ def remove_tool(tool_name: str) -> bool:
                         info(f"Removed: {install_path}")
 
             success(f"{tool_config['name']} removed successfully")
-
-        elif method == "self_managed":
-            command = tool_config["command"]
-            command_path = shutil.which(command)
-            removed_any = False
-            if command_path:
-                real_path = os.path.realpath(command_path)
-                remove_paths = [command_path]
-                if real_path != command_path:
-                    remove_paths.append(real_path)
-
-                for path in remove_paths:
-                    if not os.path.lexists(path):
-                        continue
-                    is_link = os.path.islink(path)
-                    if os.path.isdir(path) and not is_link:
-                        shutil.rmtree(path)
-                    else:
-                        os.remove(path)
-                    if is_link:
-                        info(f"Removed symlink: {path}")
-                    else:
-                        info(f"Removed: {path}")
-                    removed_any = True
-
-            if removed_any:
-                success(f"{tool_config['name']} removed successfully")
-            else:
-                warning(f"Could not find {command} binary to remove")
 
         elif method == "system":
             error(

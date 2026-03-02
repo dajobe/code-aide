@@ -273,8 +273,6 @@ def format_check_backend(check_type: str) -> str:
         return "npm-registry"
     if check_type in ("script", "direct_download"):
         return "script-url"
-    if check_type == "self_managed":
-        return "npm-registry"
     return check_type
 
 

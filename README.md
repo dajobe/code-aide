@@ -58,7 +58,7 @@ code-aide update-versions -b -y
 | Tool                     | Command   | Install Type       | Default |
 |--------------------------|-----------|--------------------|---------|
 | Cursor CLI               | `agent`   | Direct download    | Yes     |
-| Claude CLI (Claude Code) | `claude`  | Self-managed (npm) | Yes     |
+| Claude CLI (Claude Code) | `claude`  | Script             | Yes     |
 | Gemini CLI               | `gemini`  | npm                | Yes     |
 | OpenCode                 | `opencode`| npm                | No      |
 | Kilo CLI                 | `kilo`    | npm                | No      |
@@ -70,20 +70,20 @@ code-aide update-versions -b -y
 
 code-aide uses a three-layer version data model:
 
-1. **Tool definitions** (bundled with the package): Install methods,
-   URLs, npm packages, version args. Updated by releasing new versions
-   of code-aide.
+1. **Tool definitions** (bundled with the package): Install methods, URLs,
+   npm packages, version args. Updated by releasing new versions of
+   code-aide.
 
-2. **Bundled version baseline** (in `data/tools.json`): Latest
-   versions and SHA256 hashes as known at release time. Acts as a
-   fallback for fresh installs.
+2. **Bundled version baseline** (in `data/tools.json`): Latest versions and
+   SHA256 hashes as known at release time. Acts as a fallback for fresh
+   installs.
 
-3. **User's local version cache**
-   (`~/.config/code-aide/versions.json`): Written by `code-aide
-   update-versions`. Takes precedence over bundled data when present.
+3. **User's local version cache** (`~/.config/code-aide/versions.json`):
+   Written by `code-aide update-versions`. Takes precedence over bundled
+   data when present.
 
-Run `code-aide update-versions` to get fresher version data without
-waiting for a new code-aide release.
+Run `code-aide update-versions` to get fresher version data without waiting
+for a new code-aide release.
 
 ## Features
 
@@ -104,7 +104,8 @@ waiting for a new code-aide release.
 
 1. Install uv: `curl -LsSf https://astral.sh/uv/install.sh | sh`
 2. Install dependencies: `uv sync`
-3. Install pre-commit hooks: `uv tool install pre-commit && pre-commit install`
+3. Install pre-commit hooks: `uv tool install pre-commit && pre-commit
+   install`
 4. Run tests: `uv run pytest tests/ -v`
 
 ```bash
@@ -133,8 +134,8 @@ uv run pytest tests/test_install.py::TestDetectOsArch -v
    - `git add src/code_aide/__init__.py`
    - `git commit -m "Bumped version to X.Y.Z"`
 5. Write useful commit messages before tagging:
-   - Start subject lines with an action verb in past tense (`Added`, `Changed`,
-     `Fixed`, `Removed`).
+   - Start subject lines with an action verb in past tense (`Added`,
+     `Changed`, `Fixed`, `Removed`).
    - Keep subjects user-facing so auto-generated release notes are
      meaningful.
    - Group related changes into focused commits instead of one broad commit.

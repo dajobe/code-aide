@@ -286,20 +286,6 @@ def install_tool(tool_name: str, dryrun: bool = False) -> bool:
             else:
                 return False
 
-        elif install_type == "self_managed":
-            npm_package = tool_config.get("npm_package")
-            if not npm_package:
-                error(f"No npm package configured for {tool_config['name']}")
-                return False
-            if dryrun:
-                info(f"[DRYRUN] Would install npm package: {npm_package}")
-            else:
-                run_command(["npm", "install", "-g", npm_package], check=True)
-                success(f"{tool_config['name']} installed successfully")
-                info(tool_config["next_steps"])
-                if "docs_url" in tool_config:
-                    info(f"Documentation: {tool_config['docs_url']}")
-
         return True
 
     except subprocess.CalledProcessError as exc:

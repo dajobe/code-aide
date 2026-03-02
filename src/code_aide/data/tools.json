@@ -28,21 +28,16 @@
     "claude": {
       "name": "Claude CLI (Claude Code)",
       "command": "claude",
-      "install_type": "self_managed",
-      "npm_package": "@anthropic-ai/claude-code",
-      "upgrade_command": [
-        "claude",
-        "upgrade"
-      ],
-      "prerequisites": [
-        "npm"
-      ],
+      "install_type": "script",
+      "install_url": "https://claude.ai/install.sh",
+      "install_sha256": "431889ac7d056f636aaf5b71524666d04c89c45560f80329940846479d484778",
+      "prerequisites": [],
       "min_node_version": null,
       "next_steps": "Run 'claude' and then use '/login' to authenticate",
       "version_args": [
         "--version"
       ],
-      "docs_url": "https://docs.anthropic.com/en/docs/build-with-claude/claude-code",
+      "docs_url": "https://code.claude.com/docs/en/setup",
       "default_install": true,
       "latest_version": "2.1.63",
       "latest_date": "2026-02-28"

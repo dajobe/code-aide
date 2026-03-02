@@ -70,21 +70,22 @@ class TestRemoveToolDirectDownload(unittest.TestCase):
             self.assertFalse(os.path.exists(os.path.join(versions_dir, "2.0.0")))
 
 
-class TestRemoveToolSelfManaged(unittest.TestCase):
-    """Tests for remove_tool with self_managed install method."""
+class TestRemoveToolScript(unittest.TestCase):
+    """Tests for remove_tool with script install method."""
 
-    def test_removes_non_symlink_binary(self):
+    def test_removes_binary(self):
         with tempfile.TemporaryDirectory() as td:
-            binary_path = os.path.join(td, "claude")
+            binary_path = os.path.join(td, "amp")
             with open(binary_path, "w", encoding="utf-8") as f:
                 f.write("#!/bin/sh\n")
             os.chmod(binary_path, 0o755)
 
-            tool_name = "self-managed-test"
+            tool_name = "script-test"
             tool_config = {
-                "name": "Self Managed Test",
-                "command": "claude",
-                "install_type": "self_managed",
+                "name": "Script Test",
+                "command": "amp",
+                "install_type": "script",
+                "install_url": "https://example.com/install.sh",
             }
 
             with (
@@ -96,7 +97,7 @@ class TestRemoveToolSelfManaged(unittest.TestCase):
                     cli_operations,
                     "detect_install_method",
                     return_value={
-                        "method": "self_managed",
+                        "method": "script",
                         "detail": None,
                     },
                 ),

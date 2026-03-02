@@ -11,10 +11,8 @@ class TestFormatInstallMethod(unittest.TestCase):
 
     def test_brew_npm_label(self):
         self.assertEqual(
-            cli_detection.format_install_method(
-                "brew_npm", "@anthropic-ai/claude-code"
-            ),
-            "Homebrew prefix npm-global (@anthropic-ai/claude-code)",
+            cli_detection.format_install_method("brew_npm", "@google/gemini-cli"),
+            "Homebrew prefix npm-global (@google/gemini-cli)",
         )
 
     def test_brew_formula_label(self):
@@ -35,28 +33,28 @@ class TestDetectInstallMethod(unittest.TestCase):
 
     @mock.patch.object(cli_detection.os.path, "realpath")
     @mock.patch.object(cli_detection.shutil, "which")
-    def test_detects_brew_npm_wrapper(self, mock_which, mock_realpath):
-        mock_which.return_value = "/opt/homebrew/bin/claude"
+    def test_detects_native_installer(self, mock_which, mock_realpath):
+        mock_which.return_value = "/Users/test/.local/bin/claude"
         mock_realpath.return_value = (
-            "/opt/homebrew/lib/node_modules/@anthropic-ai/claude-code/cli.js"
+            "/Users/test/.local/share/claude/versions/2.1.63/claude"
         )
 
         self.assertEqual(
             cli_detection.detect_install_method("claude"),
-            {"method": "brew_npm", "detail": "@anthropic-ai/claude-code"},
+            {"method": "script", "detail": "native installer"},
         )
 
     @mock.patch.object(cli_detection.os.path, "realpath")
     @mock.patch.object(cli_detection.shutil, "which")
-    def test_detects_plain_npm_global(self, mock_which, mock_realpath):
-        mock_which.return_value = "/Users/test/.local/bin/claude"
+    def test_detects_npm_global_gemini(self, mock_which, mock_realpath):
+        mock_which.return_value = "/Users/test/.local/bin/gemini"
         mock_realpath.return_value = (
-            "/Users/test/.local/lib/node_modules/" "@anthropic-ai/claude-code/cli.js"
+            "/Users/test/.local/lib/node_modules/@google/gemini-cli/cli.js"
         )
 
         self.assertEqual(
-            cli_detection.detect_install_method("claude"),
-            {"method": "npm", "detail": "@anthropic-ai/claude-code"},
+            cli_detection.detect_install_method("gemini"),
+            {"method": "npm", "detail": "@google/gemini-cli"},
         )
 
     @mock.patch.object(cli_detection.os.path, "realpath")
@@ -108,11 +106,11 @@ class TestFormatInstallMethodDirectDownload(unittest.TestCase):
         )
 
 
-class TestFormatInstallMethodSelfManaged(unittest.TestCase):
-    """Tests for format_install_method with self_managed method."""
+class TestFormatInstallMethodScript(unittest.TestCase):
+    """Tests for format_install_method with script method."""
 
-    def test_self_managed_label(self):
+    def test_script_label(self):
         self.assertEqual(
-            cli_detection.format_install_method("self_managed", None),
-            "self-managed",
+            cli_detection.format_install_method("script", None),
+            "script",
         )

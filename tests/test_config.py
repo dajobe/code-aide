@@ -102,7 +102,7 @@ class TestMergeCachedOverBundled(unittest.TestCase):
                 tools = code_aide_config.load_tools_config()
                 self.assertEqual(tools["claude"]["latest_version"], "99.0.0")
                 self.assertEqual(tools["claude"]["latest_date"], "2099-01-01")
-                self.assertEqual(tools["claude"]["install_type"], "self_managed")
+                self.assertEqual(tools["claude"]["install_type"], "script")
 
 
 if __name__ == "__main__":

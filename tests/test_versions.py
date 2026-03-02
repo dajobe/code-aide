@@ -238,16 +238,6 @@ class TestFormatCheckBackend(unittest.TestCase):
         self.assertEqual(cli_versions.format_check_backend("custom"), "custom")
 
 
-class TestFormatCheckBackendSelfManaged(unittest.TestCase):
-    """Tests for format_check_backend with self_managed type."""
-
-    def test_self_managed_uses_npm_registry(self):
-        self.assertEqual(
-            cli_versions.format_check_backend("self_managed"),
-            "npm-registry",
-        )
-
-
 class TestExtractScriptDate(unittest.TestCase):
     """Tests for extract_script_date."""
 

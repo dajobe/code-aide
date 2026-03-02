@@ -256,7 +256,7 @@ def cmd_update_versions(args: argparse.Namespace) -> None:
         tool_config = tools[name]
         install_type = tool_config["install_type"]
 
-        if install_type in ("npm", "self_managed"):
+        if install_type == "npm":
             results.append(check_npm_tool(name, tool_config, args.verbose))
         elif install_type in ("script", "direct_download"):
             results.append(check_script_tool(name, tool_config, args.verbose))
