@@ -27,7 +27,7 @@ check:python3.13:
   image: ghcr.io/astral-sh/uv:python3.13-trixie-slim
 
 release:
-  image: alpine:3
+  image: registry.gitlab.com/gitlab-org/cli:latest
   variables:
     GIT_DEPTH: 0
   before_script:
