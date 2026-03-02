@@ -131,7 +131,8 @@ uv run pytest tests/test_install.py::TestDetectOsArch -v
    - Example: `Fixed timeout handling in status command`
 5. Tag and push:
    - `git tag vX.Y.Z`
-   - `git push origin main --follow-tags`
+   - `git push origin main`
+   - `git push origin vX.Y.Z`
 6. Confirm GitHub Actions:
    - CI should pass.
    - Publish workflow should upload to PyPI and create GitHub Release notes.
