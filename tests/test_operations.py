@@ -7,6 +7,7 @@ from unittest import mock
 
 from code_aide import commands_actions as cli_commands_actions
 from code_aide import operations as cli_operations
+from code_aide.operations import UpgradeResult
 
 
 class TestRemoveToolDirectDownload(unittest.TestCase):
@@ -137,13 +138,16 @@ class TestMigrateInstallMethod(unittest.TestCase):
             mock.patch.object(
                 cli_operations,
                 "detect_install_method",
-                return_value={"method": "npm", "detail": "test-pkg"},
+                side_effect=[
+                    {"method": "npm", "detail": "test-pkg"},
+                    {"method": "script", "detail": None},
+                ],
             ),
         ):
             result = cli_operations.upgrade_tool("test")
-        self.assertTrue(result)
+        self.assertEqual(result, UpgradeResult.CHANGED)
         mock_remove.assert_called_once_with("test")
-        mock_install.assert_called_once_with("test")
+        mock_install.assert_called_once_with("test", force=True)
 
     def test_upgrade_normal_when_not_deprecated(self):
         """upgrade_tool does normal upgrade when not deprecated."""
@@ -163,14 +167,33 @@ class TestMigrateInstallMethod(unittest.TestCase):
             mock.patch.object(
                 cli_operations,
                 "detect_install_method",
-                return_value={"method": "script", "detail": "native installer"},
+                side_effect=[
+                    {"method": "script", "detail": "native installer"},
+                    {"method": "script", "detail": "native installer"},
+                ],
             ),
             mock.patch.object(
                 cli_operations, "run_install_script", return_value=True
             ) as mock_script,
+            mock.patch.object(
+                cli_operations,
+                "_get_upgrade_snapshot",
+                side_effect=[
+                    {
+                        "method": "script",
+                        "detail": "native installer",
+                        "version": "1.0.0",
+                    },
+                    {
+                        "method": "script",
+                        "detail": "native installer",
+                        "version": "2.0.0",
+                    },
+                ],
+            ),
         ):
             result = cli_operations.upgrade_tool("test")
-        self.assertTrue(result)
+        self.assertEqual(result, UpgradeResult.CHANGED)
         mock_script.assert_called_once()
 
     def test_migration_fails_on_remove(self):
@@ -197,7 +220,7 @@ class TestMigrateInstallMethod(unittest.TestCase):
             ),
         ):
             result = cli_operations.upgrade_tool("test")
-        self.assertFalse(result)
+        self.assertEqual(result, UpgradeResult.FAILED)
         mock_install.assert_not_called()
 
     def test_migration_fails_on_install(self):
@@ -222,7 +245,42 @@ class TestMigrateInstallMethod(unittest.TestCase):
             ),
         ):
             result = cli_operations.upgrade_tool("test")
-        self.assertFalse(result)
+        self.assertEqual(result, UpgradeResult.FAILED)
+
+    def test_upgrade_reports_unchanged_when_version_does_not_change(self):
+        """Upgrade result is unchanged when package manager leaves version as-is."""
+        tool_config = {
+            "name": "Test Tool",
+            "command": "test-tool",
+            "install_type": "npm",
+            "npm_package": "test-tool",
+        }
+        with (
+            mock.patch.dict(cli_operations.TOOLS, {"test": tool_config}),
+            mock.patch.object(cli_operations, "is_tool_installed", return_value=True),
+            mock.patch.object(
+                cli_operations, "is_deprecated_install", return_value=False
+            ),
+            mock.patch.object(
+                cli_operations,
+                "detect_install_method",
+                return_value={"method": "npm", "detail": "test-tool"},
+            ),
+            mock.patch.object(cli_operations, "run_command") as mock_run,
+            mock.patch.object(
+                cli_operations,
+                "_get_upgrade_snapshot",
+                side_effect=[
+                    {"method": "npm", "detail": "test-tool", "version": "1.0.0"},
+                    {"method": "npm", "detail": "test-tool", "version": "1.0.0"},
+                ],
+            ),
+        ):
+            result = cli_operations.upgrade_tool("test")
+        self.assertEqual(result, UpgradeResult.UNCHANGED)
+        mock_run.assert_called_once_with(
+            ["npm", "install", "-g", "test-tool@latest"], check=True
+        )
 
 
 class TestCmdUpgradeDefaultSelection(unittest.TestCase):
@@ -268,7 +326,9 @@ class TestCmdUpgradeDefaultSelection(unittest.TestCase):
                 cli_commands_actions, "get_tool_status", side_effect=_status
             ),
             mock.patch.object(
-                cli_commands_actions, "upgrade_tool", return_value=True
+                cli_commands_actions,
+                "upgrade_tool",
+                return_value=UpgradeResult.CHANGED,
             ) as mock_upgrade,
         ):
             cli_commands_actions.cmd_upgrade(args)
@@ -301,7 +361,9 @@ class TestCmdUpgradeDefaultSelection(unittest.TestCase):
                 return_value={"version": "1.0.0"},
             ),
             mock.patch.object(
-                cli_commands_actions, "upgrade_tool", return_value=True
+                cli_commands_actions,
+                "upgrade_tool",
+                return_value=UpgradeResult.CHANGED,
             ) as mock_upgrade,
         ):
             cli_commands_actions.cmd_upgrade(args)

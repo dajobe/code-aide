@@ -5,10 +5,19 @@ import sys
 from typing import Any, Dict, List
 
 from code_aide.constants import TOOLS
-from code_aide.detection import is_deprecated_install
+from code_aide.detection import (
+    detect_install_method,
+    get_brew_package_info,
+    is_deprecated_install,
+)
 from code_aide.install import install_tool
 from code_aide.console import error, info, success, warning
-from code_aide.operations import remove_tool, upgrade_tool, validate_tools
+from code_aide.operations import (
+    UpgradeResult,
+    remove_tool,
+    upgrade_tool,
+    validate_tools,
+)
 from code_aide.prereqs import (
     check_path_directories,
     check_prerequisites,
@@ -131,6 +140,13 @@ def cmd_upgrade(args: argparse.Namespace) -> None:
             latest = config.get("latest_version")
             if not latest:
                 continue
+            install_info = detect_install_method(name)
+            if install_info["method"] in ("brew_formula", "brew_cask"):
+                pkg_info = get_brew_package_info(
+                    install_info["method"], install_info["detail"]
+                )
+                if pkg_info.get("outdated") is False:
+                    continue
             status = get_tool_status(name, config)
             if status["version"] and status_version_matches_latest(
                 status["version"], latest
@@ -145,7 +161,8 @@ def cmd_upgrade(args: argparse.Namespace) -> None:
 
     validate_tools(tools_to_upgrade)
 
-    upgraded = []
+    updated = []
+    unchanged = []
     failed = []
     skipped = []
 
@@ -157,8 +174,11 @@ def cmd_upgrade(args: argparse.Namespace) -> None:
             skipped.append(tool)
             continue
 
-        if upgrade_tool(tool):
-            upgraded.append(tool)
+        result = upgrade_tool(tool)
+        if result == UpgradeResult.CHANGED:
+            updated.append(tool)
+        elif result == UpgradeResult.UNCHANGED:
+            unchanged.append(tool)
         else:
             failed.append(tool)
 
@@ -167,8 +187,11 @@ def cmd_upgrade(args: argparse.Namespace) -> None:
     info("Upgrade Summary")
     print("=" * 42)
 
-    if upgraded:
-        success(f"Successfully upgraded: {', '.join(upgraded)}")
+    if updated:
+        success(f"Successfully updated: {', '.join(updated)}")
+
+    if unchanged:
+        info(f"No package-manager change: {', '.join(unchanged)}")
 
     if skipped:
         warning(f"Skipped (not installed): {', '.join(skipped)}")
@@ -177,9 +200,11 @@ def cmd_upgrade(args: argparse.Namespace) -> None:
         error(f"Failed to upgrade: {', '.join(failed)}")
         sys.exit(1)
 
-    if upgraded:
+    if updated:
         success("All upgrades completed successfully!")
-    elif skipped and not upgraded:
+    elif unchanged and not updated and not failed:
+        info("No tools changed version during the upgrade attempt")
+    elif skipped and not updated:
         info(
             "No tools were upgraded (all were either not installed or already up to date)"
         )

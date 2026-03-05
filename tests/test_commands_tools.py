@@ -80,6 +80,57 @@ class TestCmdStatus(unittest.TestCase):
         self.assertIn("Example Tool", output)
         self.assertIn("tool(s) can be upgraded", output)
 
+    def test_brew_current_upstream_lag_does_not_count_as_upgradeable(self):
+        tools = {
+            "x": {
+                "name": "Example Tool",
+                "command": "example",
+                "install_type": "npm",
+                "latest_version": "2.0.0",
+            }
+        }
+        status = {
+            "installed": True,
+            "version": "1.0.0",
+            "user": None,
+            "usage": None,
+            "errors": [],
+        }
+        args = type("Args", (), {})()
+        with (
+            mock.patch.dict(commands_tools.TOOLS, tools, clear=True),
+            mock.patch.object(commands_tools, "get_tool_status", return_value=status),
+            mock.patch.object(
+                commands_tools.shutil, "which", return_value="/opt/homebrew/bin/example"
+            ),
+            mock.patch.object(
+                commands_tools,
+                "detect_install_method",
+                return_value={"method": "brew_formula", "detail": "example"},
+            ),
+            mock.patch.object(
+                commands_tools,
+                "get_brew_package_info",
+                return_value={
+                    "package": "example",
+                    "installed_version": "1.0.0",
+                    "available_version": "1.0.0",
+                    "available_date": None,
+                    "outdated": False,
+                },
+            ),
+            mock.patch.object(
+                commands_tools, "format_migration_warning", return_value=None
+            ),
+        ):
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                commands_tools.cmd_status(args)
+        output = buf.getvalue()
+        self.assertIn("Packaged:     1.0.0 (example)", output)
+        self.assertIn("upstream: 2.0.0", output)
+        self.assertNotIn("tool(s) can be upgraded", output)
+
     def test_status_shows_migration_warning(self):
         """cmd_status shows migration warning for deprecated install."""
         tools = {

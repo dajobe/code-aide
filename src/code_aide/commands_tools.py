@@ -9,12 +9,17 @@ from code_aide.constants import Colors, PACKAGE_MANAGERS, TOOLS
 from code_aide.detection import (
     format_install_method,
     format_migration_warning,
+    get_brew_package_info,
     get_system_package_info,
     detect_install_method,
 )
 from code_aide.console import command_exists, info, warning
 from code_aide.prereqs import detect_package_manager, is_tool_installed
-from code_aide.status import print_system_version_status, get_tool_status
+from code_aide.status import (
+    get_tool_status,
+    print_brew_version_status,
+    print_system_version_status,
+)
 from code_aide.versions import (
     extract_version_from_string,
     status_version_matches_latest,
@@ -128,6 +133,44 @@ def cmd_status(args: argparse.Namespace) -> None:
                     print_system_version_status(
                         status["version"], latest_version, pkg_info
                     )
+                elif install_info["method"] in ("brew_formula", "brew_cask"):
+                    pkg_info = get_brew_package_info(
+                        install_info["method"], install_info["detail"]
+                    )
+                    if pkg_info.get("available_version"):
+                        print_brew_version_status(
+                            status["version"], latest_version, pkg_info
+                        )
+                        if pkg_info.get("outdated"):
+                            outdated_count += 1
+                    elif latest_version:
+                        if status_version_matches_latest(
+                            status["version"], latest_version
+                        ):
+                            version_annotation = (
+                                f"  Version:      {status['version']} "
+                                f"{Colors.GREEN}(up to date){Colors.NC}"
+                            )
+                        else:
+                            installed_ver = extract_version_from_string(
+                                status["version"]
+                            )
+                            if installed_ver and version_is_newer(
+                                installed_ver, latest_version
+                            ):
+                                version_annotation = (
+                                    f"  Version:      {status['version']} "
+                                    f"{Colors.YELLOW}(newer than configured "
+                                    f"{latest_version}){Colors.NC}"
+                                )
+                                config_outdated.append(tool_name)
+                            else:
+                                version_annotation = (
+                                    f"  Version:      {status['version']} "
+                                    f"{Colors.YELLOW}(latest: {latest_version}){Colors.NC}"
+                                )
+                                outdated_count += 1
+                        print(version_annotation)
                 elif latest_version:
                     if status_version_matches_latest(status["version"], latest_version):
                         version_annotation = (

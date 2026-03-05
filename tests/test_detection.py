@@ -59,6 +59,19 @@ class TestDetectInstallMethod(unittest.TestCase):
 
     @mock.patch.object(cli_detection.os.path, "realpath")
     @mock.patch.object(cli_detection.shutil, "which")
+    def test_detects_npm_under_homebrew_prefix_as_npm(self, mock_which, mock_realpath):
+        mock_which.return_value = "/opt/homebrew/bin/copilot"
+        mock_realpath.return_value = (
+            "/opt/homebrew/lib/node_modules/@github/copilot/bin/copilot.js"
+        )
+
+        self.assertEqual(
+            cli_detection.detect_install_method("copilot"),
+            {"method": "npm", "detail": "@github/copilot"},
+        )
+
+    @mock.patch.object(cli_detection.os.path, "realpath")
+    @mock.patch.object(cli_detection.shutil, "which")
     def test_detects_system_package_opt(self, mock_which, mock_realpath):
         mock_which.return_value = "/opt/bin/claude"
         mock_realpath.return_value = "/opt/bin/claude"

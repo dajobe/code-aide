@@ -5,7 +5,8 @@ import os
 import shutil
 import subprocess
 import sys
-from typing import List
+from enum import Enum
+from typing import Dict, List
 
 from code_aide.constants import TOOLS
 from code_aide.detection import (
@@ -16,10 +17,60 @@ from code_aide.detection import (
 from code_aide.install import install_direct_download, install_tool, run_install_script
 from code_aide.console import error, info, run_command, success, warning
 from code_aide.prereqs import is_tool_installed
+from code_aide.status import get_tool_status
 
 
-def _migrate_install_method(tool_name: str) -> bool:
-    """Migrate a tool from a deprecated install method to the configured one."""
+class UpgradeResult(Enum):
+    """Possible outcomes from `upgrade_tool()`.
+
+    Values:
+    - `CHANGED`: The upgrade or migration changed the detected install state.
+    - `UNCHANGED`: The upgrade command ran, but the detected install state did
+      not change.
+    - `FAILED`: The upgrade or migration failed.
+    """
+
+    CHANGED = "changed"
+    UNCHANGED = "unchanged"
+    FAILED = "failed"
+
+
+def _get_upgrade_snapshot(
+    tool_name: str, tool_config: Dict[str, str]
+) -> Dict[str, str]:
+    """Capture install method and version before/after a change."""
+    install_info = detect_install_method(tool_name)
+    status = get_tool_status(tool_name, tool_config)
+    return {
+        "method": install_info["method"],
+        "detail": install_info["detail"],
+        "version": status.get("version"),
+    }
+
+
+def _upgrade_result_from_snapshots(
+    tool_config: Dict[str, str], before: Dict[str, str], after: Dict[str, str]
+) -> UpgradeResult:
+    """Classify whether an upgrade actually changed the installed tool."""
+    if before == after:
+        version = after.get("version") or "unknown"
+        info(
+            f"{tool_config['name']} did not change after the upgrade attempt "
+            f"(current version: {version})"
+        )
+        return UpgradeResult.UNCHANGED
+    success(f"{tool_config['name']} upgraded successfully")
+    return UpgradeResult.CHANGED
+
+
+def _migrate_install_method(tool_name: str) -> UpgradeResult:
+    """Migrate a tool from a deprecated install method to the configured one.
+
+    Returns:
+    - `UpgradeResult.CHANGED` when the tool is successfully migrated.
+    - `UpgradeResult.FAILED` when removal, reinstall, or post-check verification
+      fails.
+    """
     tool_config = TOOLS[tool_name]
     install_info = detect_install_method(tool_name)
     old_label = format_install_method(install_info["method"], install_info["detail"])
@@ -36,30 +87,47 @@ def _migrate_install_method(tool_name: str) -> bool:
             f"Failed to remove old {old_label} install of {tool_config['name']}. "
             "Migration aborted."
         )
-        return False
+        return UpgradeResult.FAILED
 
-    if not install_tool(tool_name):
+    if not install_tool(tool_name, force=True):
         error(f"Failed to install {tool_config['name']} via {new_label}.")
         error(
             f"The old {old_label} install has been removed. "
             f"To recover, run: code-aide install {tool_name}"
         )
-        return False
+        return UpgradeResult.FAILED
+
+    after = detect_install_method(tool_name)
+    if after["method"] != tool_config["install_type"]:
+        detected_label = format_install_method(after["method"], after["detail"])
+        error(
+            f"Migration did not complete: {tool_config['name']} is still detected as "
+            f"{detected_label}."
+        )
+        return UpgradeResult.FAILED
 
     success(f"{tool_config['name']} migrated from {old_label} to {new_label}")
-    return True
+    return UpgradeResult.CHANGED
 
 
-def upgrade_tool(tool_name: str) -> bool:
-    """Upgrade a tool based on its configuration."""
+def upgrade_tool(tool_name: str) -> UpgradeResult:
+    """Upgrade a tool based on its configuration.
+
+    Returns:
+    - `UpgradeResult.CHANGED` when the installed tool changed version or install
+      method.
+    - `UpgradeResult.UNCHANGED` when the upgrade command ran but the detected
+      install state did not change.
+    - `UpgradeResult.FAILED` when the upgrade could not be completed.
+    """
     tool_config = TOOLS.get(tool_name)
     if not tool_config:
         error(f"Unknown tool: {tool_name}")
-        return False
+        return UpgradeResult.FAILED
 
     if not is_tool_installed(tool_name):
         warning(f"{tool_config['name']} is not installed. Use 'install' command first.")
-        return False
+        return UpgradeResult.FAILED
 
     if is_deprecated_install(tool_name):
         return _migrate_install_method(tool_name)
@@ -67,62 +135,61 @@ def upgrade_tool(tool_name: str) -> bool:
     install_info = detect_install_method(tool_name)
     method = install_info["method"]
     detail = install_info["detail"]
+    before = _get_upgrade_snapshot(tool_name, tool_config)
 
     info(f"Upgrading {tool_config['name']} (installed via {method})...")
 
     try:
         if method == "brew_formula":
             run_command(["brew", "upgrade", detail], check=True, capture=False)
-            success(f"{tool_config['name']} upgraded successfully")
 
         elif method == "brew_cask":
             run_command(
                 ["brew", "upgrade", "--cask", detail], check=True, capture=False
             )
-            success(f"{tool_config['name']} upgraded successfully")
 
         elif method in ("npm", "brew_npm"):
             npm_package = detail or tool_config.get("npm_package")
             if not npm_package:
                 error(f"No npm package configured for {tool_config['name']}")
-                return False
+                return UpgradeResult.FAILED
             run_command(["npm", "install", "-g", f"{npm_package}@latest"], check=True)
-            success(f"{tool_config['name']} upgraded successfully")
 
         elif method == "script":
             install_url = tool_config["install_url"]
             expected_sha256 = tool_config.get("install_sha256")
             if run_install_script(install_url, tool_config["name"], expected_sha256):
-                success(f"{tool_config['name']} upgraded successfully")
+                pass
             else:
-                return False
+                return UpgradeResult.FAILED
 
         elif method == "direct_download":
             if not install_direct_download(tool_name, tool_config):
-                return False
+                return UpgradeResult.FAILED
 
         elif method == "system":
             error(
                 f"{tool_config['name']} is managed by the system package manager. "
                 "Use your package manager to upgrade it."
             )
-            return False
+            return UpgradeResult.FAILED
 
         else:
             error(
                 f"Don't know how to upgrade {tool_config['name']} "
                 f"(install method: {method})"
             )
-            return False
+            return UpgradeResult.FAILED
 
-        return True
+        after = _get_upgrade_snapshot(tool_name, tool_config)
+        return _upgrade_result_from_snapshots(tool_config, before, after)
 
     except subprocess.CalledProcessError as exc:
         error(f"Failed to upgrade {tool_config['name']}: {exc.stderr}")
-        return False
+        return UpgradeResult.FAILED
     except Exception as exc:
         error(f"Failed to upgrade {tool_config['name']}: {exc}")
-        return False
+        return UpgradeResult.FAILED
 
 
 def remove_tool(tool_name: str) -> bool:

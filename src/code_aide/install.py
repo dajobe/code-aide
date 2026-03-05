@@ -234,7 +234,7 @@ def install_direct_download(
         return False
 
 
-def install_tool(tool_name: str, dryrun: bool = False) -> bool:
+def install_tool(tool_name: str, dryrun: bool = False, force: bool = False) -> bool:
     """Install a tool based on its configuration."""
     tool_config = TOOLS.get(tool_name)
     if not tool_config:
@@ -246,13 +246,25 @@ def install_tool(tool_name: str, dryrun: bool = False) -> bool:
     else:
         info(f"Installing {tool_config['name']}...")
 
-    if command_exists(tool_config["command"]):
+    if command_exists(tool_config["command"]) and not force:
         tool_path = shutil.which(tool_config["command"])
         if dryrun:
             info(f"{tool_config['command']} already installed at {tool_path}")
         else:
             warning(f"{tool_config['command']} already installed at {tool_path}")
         return True
+    if command_exists(tool_config["command"]) and force:
+        tool_path = shutil.which(tool_config["command"])
+        if dryrun:
+            info(
+                f"[DRYRUN] Would reinstall {tool_config['command']} despite existing "
+                f"binary at {tool_path}"
+            )
+        else:
+            info(
+                f"Reinstalling {tool_config['command']} despite existing binary at "
+                f"{tool_path}"
+            )
 
     try:
         install_type = tool_config["install_type"]

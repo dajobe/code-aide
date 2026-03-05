@@ -176,3 +176,60 @@ class TestInstallDirectDownload(unittest.TestCase):
             self.assertTrue(os.path.isdir(os.path.dirname(install_dir)))
             self.assertTrue(os.path.exists(os.path.join(install_dir, "test-bin")))
             self.assertTrue(os.path.islink(os.path.join(bin_dir, "test")))
+
+
+class TestInstallTool(unittest.TestCase):
+    """Tests for install_tool behavior."""
+
+    def test_force_reinstalls_even_when_binary_exists(self):
+        tool_config = {
+            "name": "Test Tool",
+            "command": "test-tool",
+            "install_type": "npm",
+            "npm_package": "test-tool",
+            "next_steps": "Run test-tool",
+        }
+
+        with (
+            mock.patch.dict(cli_install.TOOLS, {"test": tool_config}, clear=True),
+            mock.patch.object(cli_install, "command_exists", return_value=True),
+            mock.patch.object(
+                cli_install.shutil, "which", return_value="/usr/local/bin/test-tool"
+            ),
+            mock.patch.object(cli_install, "run_command") as mock_run,
+        ):
+            result = cli_install.install_tool("test", force=True)
+
+        self.assertTrue(result)
+        mock_run.assert_called_once_with(
+            ["npm", "install", "-g", "test-tool"], check=True
+        )
+
+    def test_force_dryrun_reports_reinstall_when_binary_exists(self):
+        tool_config = {
+            "name": "Test Tool",
+            "command": "test-tool",
+            "install_type": "npm",
+            "npm_package": "test-tool",
+            "next_steps": "Run test-tool",
+        }
+
+        with (
+            mock.patch.dict(cli_install.TOOLS, {"test": tool_config}, clear=True),
+            mock.patch.object(cli_install, "command_exists", return_value=True),
+            mock.patch.object(
+                cli_install.shutil, "which", return_value="/usr/local/bin/test-tool"
+            ),
+            mock.patch.object(cli_install, "info") as mock_info,
+            mock.patch.object(cli_install, "run_command") as mock_run,
+        ):
+            result = cli_install.install_tool("test", dryrun=True, force=True)
+
+        self.assertTrue(result)
+        mock_run.assert_not_called()
+        mock_info.assert_any_call("[DRYRUN] Checking Test Tool...")
+        mock_info.assert_any_call(
+            "[DRYRUN] Would reinstall test-tool despite existing binary at "
+            "/usr/local/bin/test-tool"
+        )
+        mock_info.assert_any_call("[DRYRUN] Would install npm package: test-tool")

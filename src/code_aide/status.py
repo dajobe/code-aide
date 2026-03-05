@@ -51,6 +51,36 @@ def print_system_version_status(
             print(f"  Packaged:     {avail_ver} ({pkg_name}{date_suffix})")
 
 
+def print_brew_version_status(
+    cli_version: str,
+    latest_version: Optional[str],
+    pkg_info: Dict[str, Optional[str]],
+) -> None:
+    """Print version status for a Homebrew-managed tool."""
+    avail_ver = pkg_info.get("available_version")
+    outdated = pkg_info.get("outdated")
+
+    if outdated:
+        print(
+            f"  Version:      {cli_version} {Colors.YELLOW}(Homebrew has {avail_ver})"
+            f"{Colors.NC}"
+        )
+    else:
+        print(f"  Version:      {cli_version} {Colors.GREEN}(up to date){Colors.NC}")
+
+    if avail_ver:
+        pkg_name = pkg_info.get("package") or "Homebrew"
+        if latest_version and not status_version_matches_latest(
+            avail_ver, latest_version
+        ):
+            print(
+                f"  Packaged:     {avail_ver} ({pkg_name}) "
+                f"{Colors.YELLOW}(upstream: {latest_version}){Colors.NC}"
+            )
+        else:
+            print(f"  Packaged:     {avail_ver} ({pkg_name})")
+
+
 def get_tool_status(tool_name: str, tool_config: Dict[str, Any]) -> Dict[str, Any]:
     """Get status information for a specific tool."""
     status_info = {

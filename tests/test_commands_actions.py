@@ -8,6 +8,7 @@ from unittest import mock
 
 from code_aide import commands_actions
 from code_aide import entry
+from code_aide.operations import UpgradeResult
 
 
 class TestCmdInstall(unittest.TestCase):
@@ -136,3 +137,80 @@ class TestUpgradeNoArgsParsing(unittest.TestCase):
         (args,) = mock_upgrade.call_args[0]
         self.assertEqual(args.command, "upgrade")
         self.assertEqual(args.tools, [])
+
+
+class TestCmdUpgrade(unittest.TestCase):
+    """Tests for cmd_upgrade output handling."""
+
+    def test_unchanged_upgrades_are_not_reported_as_updated(self):
+        tools = {
+            "test": {
+                "name": "Test Tool",
+                "command": "test",
+                "latest_version": "2.0.0",
+            }
+        }
+        args = type("Args", (), {"tools": ["test"]})()
+
+        with (
+            mock.patch.dict(commands_actions.TOOLS, tools, clear=True),
+            mock.patch.object(commands_actions, "validate_tools"),
+            mock.patch.object(commands_actions, "is_tool_installed", return_value=True),
+            mock.patch.object(
+                commands_actions,
+                "upgrade_tool",
+                return_value=UpgradeResult.UNCHANGED,
+            ),
+        ):
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                commands_actions.cmd_upgrade(args)
+
+        output = buf.getvalue()
+        self.assertIn("No package-manager change: test", output)
+        self.assertNotIn("Successfully updated: test", output)
+
+    def test_default_upgrade_skips_brew_tool_when_homebrew_not_outdated(self):
+        tools = {
+            "brewtool": {
+                "name": "Brew Tool",
+                "command": "brewtool",
+                "latest_version": "9.9.9",
+            }
+        }
+        args = type("Args", (), {"tools": []})()
+
+        with (
+            mock.patch.dict(commands_actions.TOOLS, tools, clear=True),
+            mock.patch.object(commands_actions, "validate_tools"),
+            mock.patch.object(commands_actions, "is_tool_installed", return_value=True),
+            mock.patch.object(
+                commands_actions, "is_deprecated_install", return_value=False
+            ),
+            mock.patch.object(
+                commands_actions,
+                "detect_install_method",
+                return_value={"method": "brew_formula", "detail": "brewtool"},
+            ),
+            mock.patch.object(
+                commands_actions,
+                "get_brew_package_info",
+                return_value={
+                    "package": "brewtool",
+                    "installed_version": "1.0.0",
+                    "available_version": "1.0.0",
+                    "available_date": None,
+                    "outdated": False,
+                },
+            ),
+            mock.patch.object(commands_actions, "get_tool_status") as mock_status,
+            mock.patch.object(commands_actions, "upgrade_tool") as mock_upgrade,
+        ):
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                commands_actions.cmd_upgrade(args)
+
+        output = buf.getvalue()
+        self.assertIn("All installed tools are up to date", output)
+        mock_status.assert_not_called()
+        mock_upgrade.assert_not_called()

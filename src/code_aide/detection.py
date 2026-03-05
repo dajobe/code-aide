@@ -1,6 +1,7 @@
 """Install-method and system package detection helpers."""
 
 import glob as globmod
+import json
 import os
 import re
 import shutil
@@ -41,12 +42,6 @@ def detect_install_method(tool_name: str) -> Dict[str, Optional[str]]:
             match = re.search(r"/node_modules/((?:@[^/]+/)?[^/]+)", real_path)
             if match:
                 npm_package = match.group(1)
-
-        if command_path.startswith("/opt/homebrew/bin/") or command_path.startswith(
-            "/usr/local/bin/"
-        ):
-            return {"method": "brew_npm", "detail": npm_package}
-
         return {"method": "npm", "detail": npm_package}
 
     system_prefixes = ("/opt/", "/usr/bin/", "/usr/sbin/", "/usr/local/bin/")
@@ -159,6 +154,72 @@ def get_system_package_info(binary_path: str) -> Dict[str, Optional[str]]:
                 ).strftime("%Y-%m-%d")
             except Exception:
                 pass
+
+    return result
+
+
+def get_brew_package_info(
+    method: str, package_name: Optional[str]
+) -> Dict[str, Optional[str]]:
+    """Get package version info for a Homebrew-managed tool."""
+    result: Dict[str, Optional[str]] = {
+        "package": package_name,
+        "installed_version": None,
+        "available_version": None,
+        "available_date": None,
+        "outdated": None,
+    }
+
+    if method not in ("brew_formula", "brew_cask") or not package_name:
+        return result
+
+    if not command_exists("brew"):
+        return result
+
+    command = ["brew", "info", "--json=v2"]
+    if method == "brew_cask":
+        command.append("--cask")
+    command.append(package_name)
+
+    try:
+        proc = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+            stdin=subprocess.DEVNULL,
+        )
+        if proc.returncode != 0 or not proc.stdout.strip():
+            return result
+
+        payload = json.loads(proc.stdout)
+        if method == "brew_formula":
+            formulae = payload.get("formulae", [])
+            if not formulae:
+                return result
+            formula = formulae[0]
+            installed = formula.get("installed", [])
+            if installed:
+                result["installed_version"] = installed[-1].get("version")
+            linked_keg = formula.get("linked_keg")
+            if linked_keg:
+                result["installed_version"] = linked_keg
+            result["available_version"] = formula.get("versions", {}).get("stable")
+            result["outdated"] = bool(formula.get("outdated"))
+        else:
+            casks = payload.get("casks", [])
+            if not casks:
+                return result
+            cask = casks[0]
+            installed_version = cask.get("installed")
+            if isinstance(installed_version, list):
+                installed_version = installed_version[0] if installed_version else None
+            result["installed_version"] = installed_version
+            result["available_version"] = cask.get("version")
+            result["outdated"] = bool(cask.get("outdated"))
+    except Exception:
+        return result
 
     return result
 
