@@ -28,6 +28,9 @@ code-aide list
 # Show detailed status for installed tools
 code-aide status
 
+# Show compact one-line-per-tool status
+code-aide status -c
+
 # Install specific tools
 code-aide install claude gemini
 
