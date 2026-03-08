@@ -151,9 +151,7 @@ def cmd_status_compact() -> None:
         install_info = detect_install_method(tool_name)
         method = _short_install_method(install_info["method"])
         latest_version = tool_config.get("latest_version")
-        ver, ver_status = _compact_version_status(
-            status["version"], latest_version
-        )
+        ver, ver_status = _compact_version_status(status["version"], latest_version)
 
         state = f"{Colors.GREEN}ok{Colors.NC}"
         if ver_status:
