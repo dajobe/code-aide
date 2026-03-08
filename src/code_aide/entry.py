@@ -34,6 +34,12 @@ def main() -> None:
     status_parser = subparsers.add_parser(
         "status", help="Show detailed status for installed tools"
     )
+    status_parser.add_argument(
+        "-c",
+        "--compact",
+        action="store_true",
+        help="Show compact one-line-per-tool status",
+    )
     status_parser.set_defaults(func=cmd_status)
 
     install_parser = subparsers.add_parser("install", help="Install tools")

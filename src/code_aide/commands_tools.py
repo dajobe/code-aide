@@ -101,8 +101,95 @@ def cmd_list(args: argparse.Namespace) -> None:
         )
 
 
+def _short_install_method(method: str | None) -> str:
+    """Return a short label for an install method."""
+    labels = {
+        "brew_formula": "brew",
+        "brew_cask": "cask",
+        "npm": "npm",
+        "brew_npm": "brew-npm",
+        "system": "system",
+        "script": "script",
+        "direct_download": "download",
+    }
+    return labels.get(method or "", method or "unknown")
+
+
+def _compact_version_status(
+    version: str | None, latest_version: str | None
+) -> tuple[str, str]:
+    """Return (version_str, status_indicator) for compact display."""
+    if not version:
+        return ("", "")
+    ver = extract_version_from_string(version) or version
+    if not latest_version:
+        return (ver, "")
+    if status_version_matches_latest(version, latest_version):
+        return (ver, f"{Colors.GREEN}ok{Colors.NC}")
+    if ver and version_is_newer(ver, latest_version):
+        return (ver, f"{Colors.YELLOW}newer{Colors.NC}")
+    return (ver, f"{Colors.YELLOW}old{Colors.NC}")
+
+
+def cmd_status_compact() -> None:
+    """Show compact one-line-per-tool status."""
+    rows: list[tuple[str, str, str, str, str]] = []
+    for tool_name, tool_config in TOOLS.items():
+        name = tool_config["command"]
+        status = get_tool_status(tool_name, tool_config)
+
+        if not status["installed"]:
+            opt_in = not tool_config.get("default_install", True)
+            if opt_in:
+                state = "opt-in"
+            else:
+                state = f"{Colors.RED}missing{Colors.NC}"
+            rows.append((name, state, "", "", ""))
+            continue
+
+        tool_path = shutil.which(tool_config["command"]) or ""
+        install_info = detect_install_method(tool_name)
+        method = _short_install_method(install_info["method"])
+        latest_version = tool_config.get("latest_version")
+        ver, ver_status = _compact_version_status(
+            status["version"], latest_version
+        )
+
+        state = f"{Colors.GREEN}ok{Colors.NC}"
+        if ver_status:
+            state = ver_status
+
+        rows.append((name, state, ver, method, tool_path))
+
+    # Calculate column widths (ignoring ANSI escape codes)
+    import re
+
+    def visible_len(s: str) -> int:
+        return len(re.sub(r"\033\[[^m]*m", "", s))
+
+    headers = ("TOOL", "STATE", "VERSION", "VIA", "PATH")
+    widths = [len(h) for h in headers]
+    for row in rows:
+        for i, cell in enumerate(row):
+            widths[i] = max(widths[i], visible_len(cell))
+
+    def fmt_row(row: tuple[str, ...]) -> str:
+        parts = []
+        for i, cell in enumerate(row):
+            pad = widths[i] - visible_len(cell)
+            parts.append(cell + " " * pad)
+        return "  ".join(parts).rstrip()
+
+    print(fmt_row(headers))
+    for row in rows:
+        print(fmt_row(row))
+
+
 def cmd_status(args: argparse.Namespace) -> None:
     """Handle status command."""
+    if getattr(args, "compact", False):
+        cmd_status_compact()
+        return
     print("AI Coding CLI Tools Status:")
     print("=" * 70)
     print()
