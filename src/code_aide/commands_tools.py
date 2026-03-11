@@ -127,7 +127,8 @@ def _compact_version_status(
     if status_version_matches_latest(version, latest_version):
         return (ver, f"{Colors.GREEN}ok{Colors.NC}")
     if ver and version_is_newer(ver, latest_version):
-        return (ver, f"{Colors.YELLOW}newer{Colors.NC}")
+        # Installed is ahead of code-aide's known latest; treat as ok.
+        return (ver, f"{Colors.GREEN}ok{Colors.NC}")
     return (ver, f"{Colors.YELLOW}old{Colors.NC}")
 
 

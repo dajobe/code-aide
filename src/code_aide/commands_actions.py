@@ -320,6 +320,22 @@ def cmd_update_versions(args: argparse.Namespace) -> None:
                 tool_entry["latest_date"] = date
                 version_info_changed = True
 
+    # Refresh latest_version from Homebrew for tools installed via brew, so
+    # "upstream" in status reflects the correct source for those installs.
+    for tool_name in tool_names:
+        install_info = detect_install_method(tool_name)
+        if install_info["method"] not in ("brew_formula", "brew_cask"):
+            continue
+        pkg_info = get_brew_package_info(install_info["method"], install_info["detail"])
+        avail = pkg_info.get("available_version")
+        if not avail:
+            continue
+        normalized = normalize_version(avail)
+        tool_entry = config["tools"][tool_name]
+        if tool_entry.get("latest_version") != normalized:
+            tool_entry["latest_version"] = normalized
+            version_info_changed = True
+
     def _save(tools: dict) -> str:
         """Save versions to user cache. Returns description."""
         save_updated_versions(tools)

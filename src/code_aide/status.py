@@ -40,9 +40,16 @@ def print_system_version_status(
     if avail_ver:
         date_suffix = f", {avail_date}" if avail_date else ""
         pkg_name = pkg_info.get("package") or "system"
-        if latest_version and not status_version_matches_latest(
-            avail_ver, latest_version
-        ):
+        # Only show upstream when config's latest is newer than packaged version;
+        # avoid showing a stale "upstream" that is older than what's installed.
+        show_upstream = (
+            latest_version
+            and not status_version_matches_latest(avail_ver, latest_version)
+            and version_is_newer(
+                normalize_version(latest_version), normalize_version(avail_ver)
+            )
+        )
+        if show_upstream:
             print(
                 f"  Packaged:     {avail_ver} ({pkg_name}{date_suffix}) "
                 f"{Colors.YELLOW}(upstream: {latest_version}){Colors.NC}"
@@ -70,9 +77,16 @@ def print_brew_version_status(
 
     if avail_ver:
         pkg_name = pkg_info.get("package") or "Homebrew"
-        if latest_version and not status_version_matches_latest(
-            avail_ver, latest_version
-        ):
+        # Only show upstream when config's latest is newer than packaged version;
+        # avoid showing a stale "upstream" that is older than what's installed.
+        show_upstream = (
+            latest_version
+            and not status_version_matches_latest(avail_ver, latest_version)
+            and version_is_newer(
+                normalize_version(latest_version), normalize_version(avail_ver)
+            )
+        )
+        if show_upstream:
             print(
                 f"  Packaged:     {avail_ver} ({pkg_name}) "
                 f"{Colors.YELLOW}(upstream: {latest_version}){Colors.NC}"
