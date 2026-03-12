@@ -6,7 +6,6 @@
       "command": "agent",
       "install_type": "direct_download",
       "install_url": "https://cursor.com/install",
-      "install_sha256": "7ccf2992a4de12c040854a833db0255a08cdfc91d40c75b78cf66a8746d9bd24",
       "download_url_template": "https://downloads.cursor.com/lab/{version}/{os}/{arch}/agent-cli-package.tar.gz",
       "install_dir": "~/.local/share/cursor-agent/versions/{version}",
       "bin_dir": "~/.local/bin",

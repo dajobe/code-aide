@@ -83,18 +83,12 @@ class TestInstallDirectDownloadDryrun(unittest.TestCase):
 
     @mock.patch.object(cli_install, "detect_os_arch", return_value=("linux", "x64"))
     @mock.patch.object(cli_install, "fetch_url")
-    def test_dryrun_verifies_sha256(self, mock_fetch, mock_os_arch):
-        script_content = (
-            b"DOWNLOAD_URL=https://example.com/2026.01.01-abc123/pkg.tar.gz"
-        )
-        expected_sha256 = cli_install.hashlib.sha256(script_content).hexdigest()
-
-        mock_fetch.return_value = (script_content, None)
+    def test_dryrun_succeeds(self, mock_fetch, mock_os_arch):
+        mock_fetch.return_value = (b"script content", None)
 
         tool_config = {
             "name": "Test Tool",
             "install_url": "https://example.com/install",
-            "install_sha256": expected_sha256,
             "download_url_template": "https://example.com/{version}/{os}/{arch}/pkg.tar.gz",
             "install_dir": "/tmp/test-{version}",
             "bin_dir": "/tmp/test-bin",
@@ -105,24 +99,6 @@ class TestInstallDirectDownloadDryrun(unittest.TestCase):
         result = cli_install.install_direct_download("test", tool_config, dryrun=True)
         self.assertTrue(result)
 
-    @mock.patch.object(cli_install, "fetch_url")
-    def test_dryrun_fails_on_bad_sha256(self, mock_fetch):
-        mock_fetch.return_value = (b"tampered script", None)
-
-        tool_config = {
-            "name": "Test Tool",
-            "install_url": "https://example.com/install",
-            "install_sha256": "0" * 64,
-            "download_url_template": "https://example.com/{version}/{os}/{arch}/pkg.tar.gz",
-            "install_dir": "/tmp/test-{version}",
-            "bin_dir": "/tmp/test-bin",
-            "symlinks": {"test": "test-bin"},
-            "latest_version": "1.0.0",
-        }
-
-        result = cli_install.install_direct_download("test", tool_config, dryrun=True)
-        self.assertFalse(result)
-
 
 class TestInstallDirectDownload(unittest.TestCase):
     """Tests for install_direct_download in non-dryrun mode."""
@@ -130,9 +106,6 @@ class TestInstallDirectDownload(unittest.TestCase):
     @mock.patch.object(cli_install, "detect_os_arch", return_value=("linux", "x64"))
     @mock.patch.object(cli_install, "fetch_url")
     def test_creates_missing_install_parent_directory(self, mock_fetch, mock_os_arch):
-        script_content = b"echo install"
-        expected_sha256 = cli_install.hashlib.sha256(script_content).hexdigest()
-
         tarball_data = io.BytesIO()
         with tarfile.open(fileobj=tarball_data, mode="w:gz") as tf:
             payload = b"#!/bin/sh\necho ok\n"
@@ -142,17 +115,11 @@ class TestInstallDirectDownload(unittest.TestCase):
             tf.addfile(info, io.BytesIO(payload))
         tarball_bytes = tarball_data.getvalue()
 
-        def _fake_fetch(url, timeout=30):
-            if url.endswith("/install"):
-                return script_content, None
-            return tarball_bytes, None
-
-        mock_fetch.side_effect = _fake_fetch
+        mock_fetch.return_value = (tarball_bytes, None)
 
         tool_config = {
             "name": "Test Tool",
             "install_url": "https://example.com/install",
-            "install_sha256": expected_sha256,
             "download_url_template": "https://example.com/{version}/{os}/{arch}/pkg.tar.gz",
             "install_dir": "/tmp/test-{version}",
             "bin_dir": "/tmp/test-bin",

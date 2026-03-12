@@ -77,9 +77,9 @@ def load_tools_config() -> dict:
     """Load tool config: bundled definitions merged with cached versions.
 
     Two-layer model: the bundled tools.json provides tool definitions and
-    install_sha256 checksums. The user's version cache (from
-    update-versions) provides latest_version, latest_date, and updated
-    install_sha256 values when present.
+    install_sha256 checksums (for script-type tools). The user's version
+    cache (from update-versions) provides latest_version, latest_date,
+    and updated install_sha256 values when present.
     """
     bundled = load_bundled_tools()
     cache = load_versions_cache()

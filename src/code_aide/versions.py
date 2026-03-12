@@ -209,13 +209,19 @@ def extract_script_version(
 def check_script_tool(
     tool_name: str, tool_config: Dict[str, Any], verbose: bool = False
 ) -> Dict[str, Any]:
-    """Check a script/direct_download tool for SHA256 changes, version, and date."""
+    """Check a script/direct_download tool for updates.
+
+    For 'script' type tools, detects changes via SHA256 comparison of the
+    install script.  For 'direct_download' tools, extracts the version from
+    the install script and compares it to the cached latest_version.
+    """
     install_url = tool_config["install_url"]
+    install_type = tool_config.get("install_type", "script")
     current_sha256 = tool_config.get("install_sha256", "")
 
     result: Dict[str, Any] = {
         "tool": tool_name,
-        "type": tool_config.get("install_type", "script"),
+        "type": install_type,
         "version": "-",
         "date": "-",
         "sha256_current": current_sha256[:12] + "..." if current_sha256 else "none",
@@ -242,11 +248,28 @@ def check_script_tool(
         if date_str:
             result["date"] = date_str
 
-        if actual_sha256 == current_sha256:
-            result["status"] = "ok"
+        if install_type == "direct_download":
+            # For direct_download tools, compare extracted version to cached
+            # latest_version rather than tracking install script SHA changes.
+            cached_version = tool_config.get("latest_version", "")
+            if version_info and cached_version:
+                extracted = normalize_version(version_info)
+                if extracted == normalize_version(cached_version):
+                    result["status"] = "ok"
+                else:
+                    result["status"] = "changed"
+            elif version_info:
+                # No cached version yet — first check
+                result["status"] = "changed"
+            else:
+                result["status"] = "ok"
         else:
-            result["status"] = "changed"
-            result["update"] = {"install_sha256": actual_sha256}
+            # For script tools, use SHA256 comparison
+            if actual_sha256 == current_sha256:
+                result["status"] = "ok"
+            else:
+                result["status"] = "changed"
+                result["update"] = {"install_sha256": actual_sha256}
 
     except Exception as exc:
         result["status"] = "error"

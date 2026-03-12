@@ -128,23 +128,6 @@ def install_direct_download(
                     "Run 'code-aide update-versions -y' first."
                 )
                 return False
-        install_url = tool_config["install_url"]
-        expected_sha256 = tool_config.get("install_sha256")
-
-        info(f"Verifying install script from: {install_url}")
-        script_content, _ = fetch_url(install_url)
-
-        if expected_sha256:
-            actual_sha256 = hashlib.sha256(script_content).hexdigest()
-            if actual_sha256 != expected_sha256:
-                error(f"SHA256 verification FAILED for {tool_name} install script!")
-                error(f"Expected: {expected_sha256}")
-                error(f"Actual:   {actual_sha256}")
-                error("")
-                error("The install script has changed and needs to be reviewed.")
-                return False
-            success("Install script SHA256 verified")
-
         os_name, arch = detect_os_arch()
         info(f"Platform: {os_name}/{arch}")
 
