@@ -116,11 +116,16 @@ def install_direct_download(
     bin_dir_override: Optional[str] = None,
 ) -> bool:
     """Download, extract, and install a tool via direct tarball download."""
+    # Tarball path never runs install_url; drop any cached script checksum so a
+    # stale value cannot trigger script verification in this flow.
+    cfg = dict(tool_config)
+    cfg.pop("install_sha256", None)
+
     try:
-        version = tool_config.get("latest_version")
+        version = cfg.get("latest_version")
         if not version:
             info("No cached version found, fetching latest version...")
-            result = check_script_tool(tool_name, tool_config)
+            result = check_script_tool(tool_name, cfg)
             version = result.get("version")
             if not version or version == "-":
                 error(
@@ -131,13 +136,13 @@ def install_direct_download(
         os_name, arch = detect_os_arch()
         info(f"Platform: {os_name}/{arch}")
 
-        url_template = tool_config["download_url_template"]
+        url_template = cfg["download_url_template"]
         download_url = url_template.format(version=version, os=os_name, arch=arch)
         info(f"Download URL: {download_url}")
 
-        install_dir_template = tool_config["install_dir"]
+        install_dir_template = cfg["install_dir"]
         install_dir = os.path.expanduser(install_dir_template.format(version=version))
-        bin_dir = os.path.expanduser(tool_config["bin_dir"])
+        bin_dir = os.path.expanduser(cfg["bin_dir"])
 
         if install_dir_override:
             install_dir = install_dir_override
@@ -148,7 +153,7 @@ def install_direct_download(
             info(f"[DRYRUN] Would download: {download_url}")
             info(f"[DRYRUN] Would extract to: {install_dir}")
             info(f"[DRYRUN] Would create symlinks in: {bin_dir}")
-            for link_name, target in tool_config.get("symlinks", {}).items():
+            for link_name, target in cfg.get("symlinks", {}).items():
                 info(f"[DRYRUN]   {link_name} -> {install_dir}/{target}")
             return True
 
@@ -195,7 +200,7 @@ def install_direct_download(
             raise
 
         os.makedirs(bin_dir, exist_ok=True)
-        symlinks = tool_config.get("symlinks", {})
+        symlinks = cfg.get("symlinks", {})
         for link_name, target_name in symlinks.items():
             link_path = os.path.join(bin_dir, link_name)
             target_path = os.path.join(install_dir, target_name)
@@ -206,7 +211,7 @@ def install_direct_download(
             os.symlink(target_path, link_path)
             info(f"Symlink: {link_path} -> {target_path}")
 
-        success(f"{tool_config['name']} installed successfully")
+        success(f"{cfg['name']} installed successfully")
         return True
 
     except RuntimeError as exc:

@@ -70,6 +70,13 @@ def merge_cached_versions(tools: dict, cache: dict) -> None:
         if tool_key in cached_tools:
             for field in DYNAMIC_FIELDS:
                 if field in cached_tools[tool_key]:
+                    if (
+                        field == "install_sha256"
+                        and tool_data.get("install_type") == "direct_download"
+                    ):
+                        # Script checksum does not apply to tarball installs; ignore
+                        # stale cache from older releases or mistaken updates.
+                        continue
                     tool_data[field] = cached_tools[tool_key][field]
 
 
@@ -79,7 +86,8 @@ def load_tools_config() -> dict:
     Two-layer model: the bundled tools.json provides tool definitions and
     install_sha256 checksums (for script-type tools). The user's version
     cache (from update-versions) provides latest_version, latest_date,
-    and updated install_sha256 values when present.
+    and updated install_sha256 values when present. Cached install_sha256
+    is ignored for direct_download tools (tarball installs).
     """
     bundled = load_bundled_tools()
     cache = load_versions_cache()
@@ -99,6 +107,11 @@ def save_updated_versions(tools: dict) -> None:
         entry = {}
         for field in DYNAMIC_FIELDS:
             if field in tool_data:
+                if (
+                    field == "install_sha256"
+                    and tool_data.get("install_type") == "direct_download"
+                ):
+                    continue
                 entry[field] = tool_data[field]
         if entry:
             cache_data["tools"][tool_key] = entry

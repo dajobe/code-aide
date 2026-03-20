@@ -156,12 +156,18 @@ def upgrade_tool(tool_name: str) -> UpgradeResult:
             run_command(["npm", "install", "-g", f"{npm_package}@latest"], check=True)
 
         elif method == "script":
-            install_url = tool_config["install_url"]
-            expected_sha256 = tool_config.get("install_sha256")
-            if run_install_script(install_url, tool_config["name"], expected_sha256):
-                pass
+            if tool_config.get("install_type") == "direct_download":
+                if not install_direct_download(tool_name, tool_config):
+                    return UpgradeResult.FAILED
             else:
-                return UpgradeResult.FAILED
+                install_url = tool_config["install_url"]
+                expected_sha256 = tool_config.get("install_sha256")
+                if run_install_script(
+                    install_url, tool_config["name"], expected_sha256
+                ):
+                    pass
+                else:
+                    return UpgradeResult.FAILED
 
         elif method == "direct_download":
             if not install_direct_download(tool_name, tool_config):

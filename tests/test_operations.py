@@ -196,6 +196,54 @@ class TestMigrateInstallMethod(unittest.TestCase):
         self.assertEqual(result, UpgradeResult.CHANGED)
         mock_script.assert_called_once()
 
+    def test_upgrade_script_detection_uses_tarball_when_config_direct_download(self):
+        """Mis-detected script install still upgrades via tarball for cursor-like tools."""
+        tool_config = {
+            "name": "Cursor CLI",
+            "command": "agent",
+            "install_type": "direct_download",
+            "install_url": "https://cursor.com/install",
+            "download_url_template": "https://example.com/{version}/linux/x64/pkg.tar.gz",
+            "install_dir": "/tmp/cursor-{version}",
+            "bin_dir": "/tmp/bin",
+            "symlinks": {"agent": "cursor-agent"},
+            "latest_version": "1.0.0",
+            "install_sha256": "stale_checksum",
+        }
+        with (
+            mock.patch.dict(cli_operations.TOOLS, {"cursor": tool_config}),
+            mock.patch.object(cli_operations, "is_tool_installed", return_value=True),
+            mock.patch.object(
+                cli_operations, "is_deprecated_install", return_value=False
+            ),
+            mock.patch.object(
+                cli_operations,
+                "detect_install_method",
+                side_effect=[
+                    {"method": "script", "detail": None},
+                    {"method": "script", "detail": None},
+                ],
+            ),
+            mock.patch.object(
+                cli_operations, "install_direct_download", return_value=True
+            ) as mock_dd,
+            mock.patch.object(
+                cli_operations, "run_install_script", return_value=False
+            ) as mock_script,
+            mock.patch.object(
+                cli_operations,
+                "_get_upgrade_snapshot",
+                side_effect=[
+                    {"method": "script", "detail": None, "version": "1.0.0"},
+                    {"method": "script", "detail": None, "version": "1.0.0"},
+                ],
+            ),
+        ):
+            result = cli_operations.upgrade_tool("cursor")
+        self.assertEqual(result, UpgradeResult.UNCHANGED)
+        mock_dd.assert_called_once_with("cursor", tool_config)
+        mock_script.assert_not_called()
+
     def test_migration_fails_on_remove(self):
         """Migration fails if remove_tool returns False."""
         tool_config = {

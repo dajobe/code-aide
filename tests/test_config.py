@@ -105,5 +105,46 @@ class TestMergeCachedOverBundled(unittest.TestCase):
                 self.assertEqual(tools["claude"]["install_type"], "script")
 
 
+class TestMergeInstallSha256DirectDownload(unittest.TestCase):
+    """install_sha256 from cache must not apply to direct_download tools."""
+
+    def test_merge_skips_install_sha256_for_direct_download(self):
+        tools = {
+            "cursor": {
+                "install_type": "direct_download",
+                "name": "Cursor CLI",
+                "command": "agent",
+            }
+        }
+        cache = {
+            "tools": {
+                "cursor": {
+                    "latest_version": "2026.03.11-6dfa30c",
+                    "install_sha256": "7ccf2992a4de12c040854a833db0255a08cdfc91d40c75b78cf66a8746d9bd24",
+                }
+            }
+        }
+        code_aide_config.merge_cached_versions(tools, cache)
+        self.assertEqual(tools["cursor"]["latest_version"], "2026.03.11-6dfa30c")
+        self.assertNotIn("install_sha256", tools["cursor"])
+
+    def test_save_omits_install_sha256_for_direct_download(self):
+        tools = {
+            "cursor": {
+                "install_type": "direct_download",
+                "name": "Cursor CLI",
+                "latest_version": "1.0.0",
+                "install_sha256": "should_not_persist",
+            }
+        }
+        with tempfile.TemporaryDirectory() as td:
+            with mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": td}):
+                code_aide_config.save_updated_versions(tools)
+                loaded = code_aide_config.load_versions_cache()
+        entry = loaded["tools"]["cursor"]
+        self.assertEqual(entry["latest_version"], "1.0.0")
+        self.assertNotIn("install_sha256", entry)
+
+
 if __name__ == "__main__":
     unittest.main()
