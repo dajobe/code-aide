@@ -194,8 +194,8 @@ def cmd_status(args: argparse.Namespace) -> None:
     print()
 
     outdated_count = 0
+    outdated_tools: List[str] = []
     migration_count = 0
-    config_outdated: List[str] = []
 
     for tool_name, tool_config in TOOLS.items():
         print(f"{Colors.BLUE}{tool_config['name']}{Colors.NC}")
@@ -229,6 +229,7 @@ def cmd_status(args: argparse.Namespace) -> None:
                         )
                         if pkg_info.get("outdated"):
                             outdated_count += 1
+                            outdated_tools.append(tool_name)
                     elif latest_version:
                         if status_version_matches_latest(
                             status["version"], latest_version
@@ -244,18 +245,18 @@ def cmd_status(args: argparse.Namespace) -> None:
                             if installed_ver and version_is_newer(
                                 installed_ver, latest_version
                             ):
+                                # Catalog may lag the install; same as compact status.
                                 version_annotation = (
                                     f"  Version:      {status['version']} "
-                                    f"{Colors.YELLOW}(newer than configured "
-                                    f"{latest_version}){Colors.NC}"
+                                    f"{Colors.GREEN}(up to date){Colors.NC}"
                                 )
-                                config_outdated.append(tool_name)
                             else:
                                 version_annotation = (
                                     f"  Version:      {status['version']} "
                                     f"{Colors.YELLOW}(latest: {latest_version}){Colors.NC}"
                                 )
                                 outdated_count += 1
+                                outdated_tools.append(tool_name)
                         print(version_annotation)
                 elif latest_version:
                     if status_version_matches_latest(status["version"], latest_version):
@@ -270,16 +271,15 @@ def cmd_status(args: argparse.Namespace) -> None:
                         ):
                             version_annotation = (
                                 f"  Version:      {status['version']} "
-                                f"{Colors.YELLOW}(newer than configured "
-                                f"{latest_version}){Colors.NC}"
+                                f"{Colors.GREEN}(up to date){Colors.NC}"
                             )
-                            config_outdated.append(tool_name)
                         else:
                             version_annotation = (
                                 f"  Version:      {status['version']} "
                                 f"{Colors.YELLOW}(latest: {latest_version}){Colors.NC}"
                             )
                             outdated_count += 1
+                            outdated_tools.append(tool_name)
                     print(version_annotation)
                 else:
                     print(f"  Version:      {status['version']}")
@@ -307,17 +307,11 @@ def cmd_status(args: argparse.Namespace) -> None:
 
         print()
 
-    if config_outdated:
-        tools_str = " ".join(config_outdated)
-        print(
-            f"{Colors.YELLOW}Configured version outdated for: "
-            f"{', '.join(config_outdated)}. Run 'code-aide update-versions "
-            f"{tools_str}' to update.{Colors.NC}"
-        )
     if outdated_count > 0:
+        names = ", ".join(outdated_tools)
         print(
             f"{Colors.YELLOW}{outdated_count} tool(s) can be upgraded with "
-            f"'code-aide upgrade'.{Colors.NC}"
+            f"'code-aide upgrade': {names}.{Colors.NC}"
         )
     if migration_count > 0:
         print(
