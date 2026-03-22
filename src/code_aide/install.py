@@ -12,6 +12,7 @@ from typing import Any, Dict, Optional
 
 from code_aide.constants import TOOLS
 from code_aide.console import command_exists, error, info, run_command, success, warning
+from code_aide.install_types import InstallType, get_tool_install_type
 from code_aide.versions import check_script_tool, fetch_url
 
 
@@ -255,9 +256,9 @@ def install_tool(tool_name: str, dryrun: bool = False, force: bool = False) -> b
             )
 
     try:
-        install_type = tool_config["install_type"]
+        install_type = get_tool_install_type(tool_config)
 
-        if install_type == "npm":
+        if install_type == InstallType.NPM:
             npm_package = tool_config["npm_package"]
             if dryrun:
                 info(f"[DRYRUN] Would install npm package: {npm_package}")
@@ -268,7 +269,7 @@ def install_tool(tool_name: str, dryrun: bool = False, force: bool = False) -> b
                 if "docs_url" in tool_config:
                     info(f"Documentation: {tool_config['docs_url']}")
 
-        elif install_type == "script":
+        elif install_type == InstallType.SCRIPT:
             install_url = tool_config["install_url"]
             expected_sha256 = tool_config.get("install_sha256")
             if run_install_script(
@@ -284,7 +285,7 @@ def install_tool(tool_name: str, dryrun: bool = False, force: bool = False) -> b
             else:
                 return False
 
-        elif install_type == "direct_download":
+        elif install_type == InstallType.DIRECT_DOWNLOAD:
             if install_direct_download(tool_name, tool_config, dryrun):
                 if dryrun:
                     success(f"{tool_config['name']} verification passed")

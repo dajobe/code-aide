@@ -4,14 +4,21 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TypedDict
 
 from code_aide.constants import Colors
 from code_aide.detection import (
+    DetectedInstallInfo,
+    PackageVersionInfo,
     detect_install_method,
     get_brew_package_info,
     get_system_package_info,
     is_install_method_deprecated,
+)
+from code_aide.install_types import (
+    InstallMethod,
+    parse_install_method,
+    parse_install_type,
 )
 from code_aide.prereqs import is_tool_installed
 from code_aide.versions import (
@@ -21,9 +28,19 @@ from code_aide.versions import (
     version_is_newer,
 )
 
-ToolStatus = Dict[str, Any]
-InstallInfo = Dict[str, Optional[str]]
-PackageInfo = Dict[str, Any]
+
+class ToolStatus(TypedDict, total=False):
+    """Observed runtime status for one tool."""
+
+    installed: bool
+    version: str | None
+    user: str | None
+    usage: str | None
+    errors: list[str]
+
+
+InstallInfo = DetectedInstallInfo
+PackageInfo = PackageVersionInfo
 
 
 class UpgradeDecision(Enum):
@@ -54,7 +71,7 @@ class ToolUpgradeAssessment:
     actionable_by_upgrade: bool
     latest_version: Optional[str]
     installed_version: Optional[str]
-    install_method: Optional[str]
+    install_method: Optional[InstallMethod]
     install_detail: Optional[str]
     status: ToolStatus
     package_info: Optional[PackageInfo] = None
@@ -91,8 +108,8 @@ class ToolUpgradeEvaluator:
             )
 
         install_info = self._get_install_info()
-        method = install_info.get("method")
-        configured = self.tool_config.get("install_type")
+        method = parse_install_method(install_info.get("method"))
+        configured = parse_install_type(self.tool_config.get("install_type"))
         package_info = self._get_package_info(method, install_info)
         version_state = self._catalog_version_state(status.get("version"))
 
@@ -105,10 +122,10 @@ class ToolUpgradeEvaluator:
                 package_info=package_info,
             )
 
-        if method in ("brew_formula", "brew_cask"):
+        if method in (InstallMethod.BREW_FORMULA, InstallMethod.BREW_CASK):
             return self._evaluate_brew(status, install_info, package_info)
 
-        if method == "system":
+        if method == InstallMethod.SYSTEM:
             return self._result(
                 decision=UpgradeDecision.PACKAGE_MANAGED,
                 version_state=self._system_version_state(
@@ -189,7 +206,7 @@ class ToolUpgradeEvaluator:
             in (UpgradeDecision.UPGRADE, UpgradeDecision.MIGRATION),
             latest_version=self.tool_config.get("latest_version"),
             installed_version=status.get("version"),
-            install_method=install_info.get("method"),
+            install_method=parse_install_method(install_info.get("method")),
             install_detail=install_info.get("detail"),
             status=status,
             package_info=package_info,
@@ -205,19 +222,28 @@ class ToolUpgradeEvaluator:
     def _get_install_info(self) -> InstallInfo:
         if self._install_info is None:
             self._install_info = detect_install_method(self.tool_name)
-        return self._install_info
+        return {
+            "method": parse_install_method(self._install_info.get("method")),
+            "detail": self._install_info.get("detail"),
+        }
 
     def _get_package_info(
-        self, method: Optional[str], install_info: InstallInfo
+        self, method: Optional[InstallMethod], install_info: InstallInfo
     ) -> Optional[PackageInfo]:
         if self._package_info is not None:
-            return self._package_info
+            return {
+                "package": self._package_info.get("package"),
+                "installed_version": self._package_info.get("installed_version"),
+                "available_version": self._package_info.get("available_version"),
+                "available_date": self._package_info.get("available_date"),
+                "outdated": self._package_info.get("outdated"),
+            }
 
-        if method in ("brew_formula", "brew_cask"):
+        if method in (InstallMethod.BREW_FORMULA, InstallMethod.BREW_CASK):
             self._package_info = get_brew_package_info(
                 method, install_info.get("detail")
             )
-        elif method == "system":
+        elif method == InstallMethod.SYSTEM:
             tool_path = self._tool_path or shutil.which(self.tool_config["command"])
             self._package_info = (
                 get_system_package_info(tool_path) if tool_path else None
@@ -278,7 +304,7 @@ def _version_matches_or_exceeds_latest(
 def print_system_version_status(
     cli_version: str,
     latest_version: Optional[str],
-    pkg_info: Dict[str, Optional[str]],
+    pkg_info: PackageInfo,
 ) -> None:
     """Print version status for a system-package-managed tool."""
     installed_ver = extract_version_from_string(cli_version)
@@ -323,7 +349,7 @@ def print_system_version_status(
 def print_brew_version_status(
     cli_version: str,
     latest_version: Optional[str],
-    pkg_info: Dict[str, Optional[str]],
+    pkg_info: PackageInfo,
 ) -> None:
     """Print version status for a Homebrew-managed tool."""
     avail_ver = pkg_info.get("available_version")
@@ -357,7 +383,7 @@ def print_brew_version_status(
             print(f"  Packaged:     {avail_ver} ({pkg_name})")
 
 
-def get_tool_status(tool_name: str, tool_config: Dict[str, Any]) -> Dict[str, Any]:
+def get_tool_status(tool_name: str, tool_config: Dict[str, Any]) -> ToolStatus:
     """Get status information for a specific tool."""
     status_info = {
         "installed": is_tool_installed(tool_name),

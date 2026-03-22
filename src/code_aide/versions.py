@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 
 from code_aide import __version__
 from code_aide.constants import Colors
+from code_aide.install_types import InstallType, parse_install_type
 
 
 def fetch_url(url: str, timeout: int = 30) -> tuple:
@@ -216,12 +217,18 @@ def check_script_tool(
     the install script and compares it to the cached latest_version.
     """
     install_url = tool_config["install_url"]
-    install_type = tool_config.get("install_type", "script")
+    install_type = parse_install_type(
+        tool_config.get("install_type", InstallType.SCRIPT)
+    )
     current_sha256 = tool_config.get("install_sha256", "")
 
     result: Dict[str, Any] = {
         "tool": tool_name,
-        "type": install_type,
+        "type": (
+            install_type.value
+            if install_type is not None
+            else tool_config.get("install_type", "script")
+        ),
         "version": "-",
         "date": "-",
         "sha256_current": current_sha256[:12] + "..." if current_sha256 else "none",
@@ -248,7 +255,7 @@ def check_script_tool(
         if date_str:
             result["date"] = date_str
 
-        if install_type == "direct_download":
+        if install_type == InstallType.DIRECT_DOWNLOAD:
             # For direct_download tools, compare extracted version to cached
             # latest_version rather than tracking install script SHA changes.
             cached_version = tool_config.get("latest_version", "")

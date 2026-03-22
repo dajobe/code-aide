@@ -14,6 +14,11 @@ from code_aide.detection import (
     detect_install_method,
 )
 from code_aide.console import command_exists, info, warning
+from code_aide.install_types import (
+    InstallMethod,
+    parse_install_method,
+    parse_install_type,
+)
 from code_aide.prereqs import detect_package_manager, is_tool_installed
 from code_aide.status import (
     print_brew_version_status,
@@ -44,7 +49,9 @@ def cmd_list(args: argparse.Namespace) -> None:
         print(f"{Colors.BLUE}{tool_config['name']}{Colors.NC}")
         print(f"  Command:      {tool_config['command']}")
         print(f"  Status:       {status}")
-        print(f"  Managed by:   {tool_config['install_type']} (code-aide)")
+        install_type = parse_install_type(tool_config["install_type"])
+        managed_by = install_type.value if install_type else tool_config["install_type"]
+        print(f"  Managed by:   {managed_by} (code-aide)")
 
         if installed:
             tool_path = shutil.which(tool_config["command"])
@@ -104,15 +111,18 @@ def cmd_list(args: argparse.Namespace) -> None:
 def _short_install_method(method: str | None) -> str:
     """Return a short label for an install method."""
     labels = {
-        "brew_formula": "brew",
-        "brew_cask": "cask",
-        "npm": "npm",
-        "brew_npm": "brew-npm",
-        "system": "system",
-        "script": "script",
-        "direct_download": "download",
+        InstallMethod.BREW_FORMULA: "brew",
+        InstallMethod.BREW_CASK: "cask",
+        InstallMethod.NPM: "npm",
+        InstallMethod.BREW_NPM: "brew-npm",
+        InstallMethod.SYSTEM: "system",
+        InstallMethod.SCRIPT: "script",
+        InstallMethod.DIRECT_DOWNLOAD: "download",
     }
-    return labels.get(method or "", method or "unknown")
+    install_method = parse_install_method(method)
+    if install_method is None:
+        return str(method or "unknown")
+    return labels.get(install_method, str(install_method))
 
 
 def _compact_version_status(
@@ -224,7 +234,7 @@ def cmd_status(args: argparse.Namespace) -> None:
 
             if status["version"]:
                 if (
-                    assessment.install_method == "system"
+                    assessment.install_method == InstallMethod.SYSTEM
                     and tool_path
                     and assessment.package_info
                 ):
@@ -233,7 +243,10 @@ def cmd_status(args: argparse.Namespace) -> None:
                         assessment.latest_version,
                         assessment.package_info,
                     )
-                elif assessment.install_method in ("brew_formula", "brew_cask"):
+                elif assessment.install_method in (
+                    InstallMethod.BREW_FORMULA,
+                    InstallMethod.BREW_CASK,
+                ):
                     if assessment.package_info and assessment.package_info.get(
                         "available_version"
                     ):

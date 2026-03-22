@@ -7,34 +7,66 @@ import re
 import shutil
 import subprocess
 from datetime import datetime, timezone
-from typing import Dict, Optional
+from typing import Optional, TypedDict
 
 from code_aide.constants import TOOLS
 from code_aide.console import command_exists
+from code_aide.install_types import (
+    InstallMethod,
+    InstallMethodInput,
+    InstallType,
+    InstallTypeInput,
+    get_tool_install_type,
+    install_method_from_type,
+    parse_install_method,
+    parse_install_type,
+)
 
 
-def detect_install_method(tool_name: str) -> Dict[str, Optional[str]]:
+class DetectedInstallInfo(TypedDict):
+    """How a locally installed tool was detected."""
+
+    method: InstallMethod | None
+    detail: str | None
+
+
+class PackageVersionInfo(TypedDict, total=False):
+    """Package-manager version metadata for a detected install."""
+
+    package: str | None
+    installed_version: str | None
+    available_version: str | None
+    available_date: str | None
+    outdated: bool | None
+
+
+def _empty_install_info() -> DetectedInstallInfo:
+    """Return the default empty install-info shape."""
+    return {"method": None, "detail": None}
+
+
+def detect_install_method(tool_name: str) -> DetectedInstallInfo:
     """Detect how a tool was actually installed."""
     tool_config = TOOLS.get(tool_name)
     if not tool_config:
-        return {"method": None, "detail": None}
+        return _empty_install_info()
 
     command_path = shutil.which(tool_config["command"])
     if not command_path:
-        return {"method": None, "detail": None}
+        return _empty_install_info()
 
     real_path = os.path.realpath(command_path)
 
     cellar_match = re.search(r"/Cellar/([^/]+)/", real_path)
     if cellar_match:
-        return {"method": "brew_formula", "detail": cellar_match.group(1)}
+        return {"method": InstallMethod.BREW_FORMULA, "detail": cellar_match.group(1)}
 
     caskroom_match = re.search(r"/Caskroom/([^/]+)/", real_path)
     if caskroom_match:
-        return {"method": "brew_cask", "detail": caskroom_match.group(1)}
+        return {"method": InstallMethod.BREW_CASK, "detail": caskroom_match.group(1)}
 
     if "/.local/share/claude/versions/" in real_path:
-        return {"method": "script", "detail": "native installer"}
+        return {"method": InstallMethod.SCRIPT, "detail": "native installer"}
 
     if "/node_modules/" in real_path:
         npm_package = tool_config.get("npm_package")
@@ -42,18 +74,21 @@ def detect_install_method(tool_name: str) -> Dict[str, Optional[str]]:
             match = re.search(r"/node_modules/((?:@[^/]+/)?[^/]+)", real_path)
             if match:
                 npm_package = match.group(1)
-        return {"method": "npm", "detail": npm_package}
+        return {"method": InstallMethod.NPM, "detail": npm_package}
 
     system_prefixes = ("/opt/", "/usr/bin/", "/usr/sbin/", "/usr/local/bin/")
     if any(real_path.startswith(prefix) for prefix in system_prefixes):
-        return {"method": "system", "detail": real_path}
+        return {"method": InstallMethod.SYSTEM, "detail": real_path}
 
-    return {"method": tool_config["install_type"], "detail": None}
+    return {
+        "method": install_method_from_type(get_tool_install_type(tool_config)),
+        "detail": None,
+    }
 
 
-def get_system_package_info(binary_path: str) -> Dict[str, Optional[str]]:
+def get_system_package_info(binary_path: str) -> PackageVersionInfo:
     """Get package version info for a system-installed binary."""
-    result: Dict[str, Optional[str]] = {
+    result: PackageVersionInfo = {
         "package": None,
         "installed_version": None,
         "available_version": None,
@@ -159,10 +194,11 @@ def get_system_package_info(binary_path: str) -> Dict[str, Optional[str]]:
 
 
 def get_brew_package_info(
-    method: str, package_name: Optional[str]
-) -> Dict[str, Optional[str]]:
+    method: InstallMethodInput, package_name: Optional[str]
+) -> PackageVersionInfo:
     """Get package version info for a Homebrew-managed tool."""
-    result: Dict[str, Optional[str]] = {
+    brew_method = parse_install_method(method)
+    result: PackageVersionInfo = {
         "package": package_name,
         "installed_version": None,
         "available_version": None,
@@ -170,14 +206,17 @@ def get_brew_package_info(
         "outdated": None,
     }
 
-    if method not in ("brew_formula", "brew_cask") or not package_name:
+    if (
+        brew_method not in (InstallMethod.BREW_FORMULA, InstallMethod.BREW_CASK)
+        or not package_name
+    ):
         return result
 
     if not command_exists("brew"):
         return result
 
     command = ["brew", "info", "--json=v2"]
-    if method == "brew_cask":
+    if brew_method == InstallMethod.BREW_CASK:
         command.append("--cask")
     command.append(package_name)
 
@@ -194,7 +233,7 @@ def get_brew_package_info(
             return result
 
         payload = json.loads(proc.stdout)
-        if method == "brew_formula":
+        if brew_method == InstallMethod.BREW_FORMULA:
             formulae = payload.get("formulae", [])
             if not formulae:
                 return result
@@ -224,50 +263,66 @@ def get_brew_package_info(
     return result
 
 
-def format_install_method(method: Optional[str], detail: Optional[str]) -> str:
+def format_install_method(method: InstallMethodInput, detail: Optional[str]) -> str:
     """Format detected local install method for display."""
-    if method == "brew_formula":
+    install_method = parse_install_method(method)
+    install_type = parse_install_type(method)
+    if install_method == InstallMethod.BREW_FORMULA:
         return f"Homebrew formula ({detail})" if detail else "Homebrew formula"
-    if method == "brew_cask":
+    if install_method == InstallMethod.BREW_CASK:
         return f"Homebrew cask ({detail})" if detail else "Homebrew cask"
-    if method == "npm":
+    if install_method == InstallMethod.NPM:
         return f"npm ({detail})" if detail else "npm"
-    if method == "brew_npm":
+    if install_method == InstallMethod.BREW_NPM:
         return (
             f"Homebrew prefix npm-global ({detail})"
             if detail
             else "Homebrew prefix npm-global"
         )
-    if method == "system":
+    if install_method == InstallMethod.SYSTEM:
         return f"system package ({detail})" if detail else "system package"
-    if method == "script":
+    if install_method == InstallMethod.SCRIPT or install_type == InstallType.SCRIPT:
         return "script"
-    if method == "direct_download":
+    if (
+        install_method == InstallMethod.DIRECT_DOWNLOAD
+        or install_type == InstallType.DIRECT_DOWNLOAD
+    ):
         return "direct download"
     if method:
-        return method
+        return str(method)
     return "unknown"
 
 
 # Install methods that are user-managed and never considered deprecated
-_USER_MANAGED_METHODS = frozenset({"brew_formula", "brew_cask", "system"})
+_USER_MANAGED_METHODS = frozenset(
+    {
+        InstallMethod.BREW_FORMULA,
+        InstallMethod.BREW_CASK,
+        InstallMethod.SYSTEM,
+    }
+)
 
 # Install methods that are considered deprecated when they don't match
 # the configured install_type
-_DEPRECATED_METHODS = frozenset({"npm", "brew_npm"})
+_DEPRECATED_METHODS = frozenset({InstallMethod.NPM, InstallMethod.BREW_NPM})
 
 
 def is_install_method_deprecated(
-    detected: Optional[str], configured: Optional[str]
+    detected: InstallMethodInput, configured: InstallTypeInput | None
 ) -> bool:
     """Return True when a detected method should be migrated by code-aide."""
-    if not detected or not configured:
+    detected_method = parse_install_method(detected)
+    configured_type = parse_install_type(configured)
+    if not detected_method or not configured_type:
         return False
 
-    if detected in _USER_MANAGED_METHODS:
+    if detected_method in _USER_MANAGED_METHODS:
         return False
 
-    return detected in _DEPRECATED_METHODS and detected != configured
+    return (
+        detected_method in _DEPRECATED_METHODS
+        and detected_method != install_method_from_type(configured_type)
+    )
 
 
 def is_deprecated_install(tool_name: str) -> bool:
@@ -283,7 +338,7 @@ def is_deprecated_install(tool_name: str) -> bool:
         return False
 
     install_info = detect_install_method(tool_name)
-    detected = install_info["method"]
+    detected = parse_install_method(install_info["method"])
 
     if not detected:
         return False

@@ -6,7 +6,7 @@ import shutil
 import subprocess
 import sys
 from enum import Enum
-from typing import Dict, List
+from typing import Dict, List, TypedDict
 
 from code_aide.constants import TOOLS
 from code_aide.detection import (
@@ -15,6 +15,13 @@ from code_aide.detection import (
     is_deprecated_install,
 )
 from code_aide.install import install_direct_download, install_tool, run_install_script
+from code_aide.install_types import (
+    InstallMethod,
+    InstallType,
+    get_tool_install_type,
+    install_method_from_type,
+    parse_install_method,
+)
 from code_aide.console import error, info, run_command, success, warning
 from code_aide.prereqs import is_tool_installed
 from code_aide.status import get_tool_status
@@ -35,9 +42,17 @@ class UpgradeResult(Enum):
     FAILED = "failed"
 
 
+class UpgradeSnapshot(TypedDict):
+    """Install method and version captured before or after an upgrade."""
+
+    method: InstallMethod | None
+    detail: str | None
+    version: str | None
+
+
 def _get_upgrade_snapshot(
     tool_name: str, tool_config: Dict[str, str]
-) -> Dict[str, str]:
+) -> UpgradeSnapshot:
     """Capture install method and version before/after a change."""
     install_info = detect_install_method(tool_name)
     status = get_tool_status(tool_name, tool_config)
@@ -49,7 +64,7 @@ def _get_upgrade_snapshot(
 
 
 def _upgrade_result_from_snapshots(
-    tool_config: Dict[str, str], before: Dict[str, str], after: Dict[str, str]
+    tool_config: Dict[str, str], before: UpgradeSnapshot, after: UpgradeSnapshot
 ) -> UpgradeResult:
     """Classify whether an upgrade actually changed the installed tool."""
     if before == after:
@@ -74,7 +89,7 @@ def _migrate_install_method(tool_name: str) -> UpgradeResult:
     tool_config = TOOLS[tool_name]
     install_info = detect_install_method(tool_name)
     old_label = format_install_method(install_info["method"], install_info["detail"])
-    new_label = format_install_method(tool_config["install_type"], None)
+    new_label = format_install_method(get_tool_install_type(tool_config), None)
 
     warning(
         f"{tool_config['name']} is installed via {old_label} "
@@ -98,7 +113,9 @@ def _migrate_install_method(tool_name: str) -> UpgradeResult:
         return UpgradeResult.FAILED
 
     after = detect_install_method(tool_name)
-    if after["method"] != tool_config["install_type"]:
+    if parse_install_method(after["method"]) != install_method_from_type(
+        get_tool_install_type(tool_config)
+    ):
         detected_label = format_install_method(after["method"], after["detail"])
         error(
             f"Migration did not complete: {tool_config['name']} is still detected as "
@@ -133,30 +150,30 @@ def upgrade_tool(tool_name: str) -> UpgradeResult:
         return _migrate_install_method(tool_name)
 
     install_info = detect_install_method(tool_name)
-    method = install_info["method"]
+    method = parse_install_method(install_info["method"])
     detail = install_info["detail"]
     before = _get_upgrade_snapshot(tool_name, tool_config)
 
     info(f"Upgrading {tool_config['name']} (installed via {method})...")
 
     try:
-        if method == "brew_formula":
+        if method == InstallMethod.BREW_FORMULA:
             run_command(["brew", "upgrade", detail], check=True, capture=False)
 
-        elif method == "brew_cask":
+        elif method == InstallMethod.BREW_CASK:
             run_command(
                 ["brew", "upgrade", "--cask", detail], check=True, capture=False
             )
 
-        elif method in ("npm", "brew_npm"):
+        elif method in (InstallMethod.NPM, InstallMethod.BREW_NPM):
             npm_package = detail or tool_config.get("npm_package")
             if not npm_package:
                 error(f"No npm package configured for {tool_config['name']}")
                 return UpgradeResult.FAILED
             run_command(["npm", "install", "-g", f"{npm_package}@latest"], check=True)
 
-        elif method == "script":
-            if tool_config.get("install_type") == "direct_download":
+        elif method == InstallMethod.SCRIPT:
+            if get_tool_install_type(tool_config) == InstallType.DIRECT_DOWNLOAD:
                 if not install_direct_download(tool_name, tool_config):
                     return UpgradeResult.FAILED
             else:
@@ -169,11 +186,11 @@ def upgrade_tool(tool_name: str) -> UpgradeResult:
                 else:
                     return UpgradeResult.FAILED
 
-        elif method == "direct_download":
+        elif method == InstallMethod.DIRECT_DOWNLOAD:
             if not install_direct_download(tool_name, tool_config):
                 return UpgradeResult.FAILED
 
-        elif method == "system":
+        elif method == InstallMethod.SYSTEM:
             error(
                 f"{tool_config['name']} is managed by the system package manager. "
                 "Use your package manager to upgrade it."
@@ -210,23 +227,23 @@ def remove_tool(tool_name: str) -> bool:
         return True
 
     install_info = detect_install_method(tool_name)
-    method = install_info["method"]
+    method = parse_install_method(install_info["method"])
     detail = install_info["detail"]
 
     info(f"Removing {tool_config['name']} (installed via {method})...")
 
     try:
-        if method == "brew_formula":
+        if method == InstallMethod.BREW_FORMULA:
             run_command(["brew", "uninstall", detail], check=True, capture=False)
             success(f"{tool_config['name']} removed successfully")
 
-        elif method == "brew_cask":
+        elif method == InstallMethod.BREW_CASK:
             run_command(
                 ["brew", "uninstall", "--cask", detail], check=True, capture=False
             )
             success(f"{tool_config['name']} removed successfully")
 
-        elif method in ("npm", "brew_npm"):
+        elif method in (InstallMethod.NPM, InstallMethod.BREW_NPM):
             npm_package = detail or tool_config.get("npm_package")
             if not npm_package:
                 error(f"No npm package configured for {tool_config['name']}")
@@ -234,7 +251,7 @@ def remove_tool(tool_name: str) -> bool:
             run_command(["npm", "uninstall", "-g", npm_package], check=True)
             success(f"{tool_config['name']} removed successfully")
 
-        elif method == "script":
+        elif method == InstallMethod.SCRIPT:
             command = tool_config["command"]
             command_path = shutil.which(command)
 
@@ -267,7 +284,7 @@ def remove_tool(tool_name: str) -> bool:
                     shutil.rmtree(claude_data)
                     info(f"Removed data directory: {claude_data}")
 
-        elif method == "direct_download":
+        elif method == InstallMethod.DIRECT_DOWNLOAD:
             bin_dir = os.path.expanduser(tool_config.get("bin_dir", "~/.local/bin"))
             removed_links = set()
             for link_name in tool_config.get("symlinks", {}):
@@ -310,7 +327,7 @@ def remove_tool(tool_name: str) -> bool:
 
             success(f"{tool_config['name']} removed successfully")
 
-        elif method == "system":
+        elif method == InstallMethod.SYSTEM:
             error(
                 f"{tool_config['name']} is managed by the system package manager. "
                 "Use your package manager to remove it."

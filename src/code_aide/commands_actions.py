@@ -7,6 +7,12 @@ from typing import Any, Dict, List
 from code_aide.constants import TOOLS
 from code_aide.detection import detect_install_method, get_brew_package_info
 from code_aide.install import install_tool
+from code_aide.install_types import (
+    InstallMethod,
+    InstallType,
+    parse_install_method,
+    parse_install_type,
+)
 from code_aide.console import error, info, success, warning
 from code_aide.operations import (
     UpgradeResult,
@@ -258,20 +264,20 @@ def cmd_update_versions(args: argparse.Namespace) -> None:
     results: List[Dict[str, Any]] = []
     for name in tool_names:
         tool_config = tools[name]
-        install_type = tool_config["install_type"]
+        install_type = parse_install_type(tool_config["install_type"])
 
-        if install_type == "npm":
+        if install_type == InstallType.NPM:
             results.append(check_npm_tool(name, tool_config, args.verbose))
-        elif install_type in ("script", "direct_download"):
+        elif install_type in (InstallType.SCRIPT, InstallType.DIRECT_DOWNLOAD):
             results.append(check_script_tool(name, tool_config, args.verbose))
         else:
             results.append(
                 {
                     "tool": name,
-                    "type": install_type,
+                    "type": tool_config["install_type"],
                     "version": "-",
                     "date": "-",
-                    "status": f"unknown type: {install_type}",
+                    "status": f"unknown type: {tool_config['install_type']}",
                     "update": None,
                 }
             )
@@ -300,9 +306,10 @@ def cmd_update_versions(args: argparse.Namespace) -> None:
     # "upstream" in status reflects the correct source for those installs.
     for tool_name in tool_names:
         install_info = detect_install_method(tool_name)
-        if install_info["method"] not in ("brew_formula", "brew_cask"):
+        method = parse_install_method(install_info["method"])
+        if method not in (InstallMethod.BREW_FORMULA, InstallMethod.BREW_CASK):
             continue
-        pkg_info = get_brew_package_info(install_info["method"], install_info["detail"])
+        pkg_info = get_brew_package_info(method, install_info["detail"])
         avail = pkg_info.get("available_version")
         if not avail:
             continue

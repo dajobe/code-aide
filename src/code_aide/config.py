@@ -9,6 +9,8 @@ import importlib.resources
 import json
 import os
 
+from code_aide.install_types import InstallType, parse_install_type
+
 
 def get_config_dir() -> str:
     """Return XDG config directory for code-aide.
@@ -72,7 +74,8 @@ def merge_cached_versions(tools: dict, cache: dict) -> None:
                 if field in cached_tools[tool_key]:
                     if (
                         field == "install_sha256"
-                        and tool_data.get("install_type") == "direct_download"
+                        and parse_install_type(tool_data.get("install_type"))
+                        == InstallType.DIRECT_DOWNLOAD
                     ):
                         # Script checksum does not apply to tarball installs; ignore
                         # stale cache from older releases or mistaken updates.
@@ -109,7 +112,8 @@ def save_updated_versions(tools: dict) -> None:
             if field in tool_data:
                 if (
                     field == "install_sha256"
-                    and tool_data.get("install_type") == "direct_download"
+                    and parse_install_type(tool_data.get("install_type"))
+                    == InstallType.DIRECT_DOWNLOAD
                 ):
                     continue
                 entry[field] = tool_data[field]
