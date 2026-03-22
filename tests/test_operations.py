@@ -365,20 +365,35 @@ class TestCmdUpgradeDefaultSelection(unittest.TestCase):
         with (
             mock.patch.dict(cli_commands_actions.TOOLS, tools, clear=True),
             mock.patch.object(
-                cli_commands_actions, "is_tool_installed", side_effect=_installed
+                cli_commands_actions, "is_tool_installed", return_value=True
             ),
             mock.patch.object(
-                cli_commands_actions, "is_deprecated_install", return_value=False
-            ),
-            mock.patch.object(
-                cli_commands_actions, "get_tool_status", side_effect=_status
-            ),
+                cli_commands_actions,
+                "ToolUpgradeEvaluator",
+            ) as mock_evaluator,
             mock.patch.object(
                 cli_commands_actions,
                 "upgrade_tool",
                 return_value=UpgradeResult.CHANGED,
             ) as mock_upgrade,
         ):
+
+            def _assessment(name):
+                version = _status(name, None)["version"]
+                return mock.Mock(
+                    actionable_by_upgrade=(name == "old"),
+                    installed_version=version,
+                )
+
+            mock_evaluator.side_effect = [
+                mock.Mock(evaluate=mock.Mock(return_value=_assessment("old"))),
+                mock.Mock(evaluate=mock.Mock(return_value=_assessment("new"))),
+                mock.Mock(
+                    evaluate=mock.Mock(
+                        return_value=mock.Mock(actionable_by_upgrade=False)
+                    )
+                ),
+            ]
             cli_commands_actions.cmd_upgrade(args)
 
         mock_upgrade.assert_called_once_with("old")
@@ -401,19 +416,18 @@ class TestCmdUpgradeDefaultSelection(unittest.TestCase):
                 cli_commands_actions, "is_tool_installed", return_value=True
             ),
             mock.patch.object(
-                cli_commands_actions, "is_deprecated_install", return_value=True
-            ),
-            mock.patch.object(
                 cli_commands_actions,
-                "get_tool_status",
-                return_value={"version": "1.0.0"},
-            ),
+                "ToolUpgradeEvaluator",
+            ) as mock_evaluator,
             mock.patch.object(
                 cli_commands_actions,
                 "upgrade_tool",
                 return_value=UpgradeResult.CHANGED,
             ) as mock_upgrade,
         ):
+            mock_evaluator.return_value.evaluate.return_value = mock.Mock(
+                actionable_by_upgrade=True
+            )
             cli_commands_actions.cmd_upgrade(args)
 
         mock_upgrade.assert_called_once_with("current")

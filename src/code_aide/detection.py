@@ -257,6 +257,19 @@ _USER_MANAGED_METHODS = frozenset({"brew_formula", "brew_cask", "system"})
 _DEPRECATED_METHODS = frozenset({"npm", "brew_npm"})
 
 
+def is_install_method_deprecated(
+    detected: Optional[str], configured: Optional[str]
+) -> bool:
+    """Return True when a detected method should be migrated by code-aide."""
+    if not detected or not configured:
+        return False
+
+    if detected in _USER_MANAGED_METHODS:
+        return False
+
+    return detected in _DEPRECATED_METHODS and detected != configured
+
+
 def is_deprecated_install(tool_name: str) -> bool:
     """Check if a tool's detected install method is deprecated.
 
@@ -282,10 +295,7 @@ def is_deprecated_install(tool_name: str) -> bool:
     if not configured:
         return False
 
-    if detected in _DEPRECATED_METHODS and detected != configured:
-        return True
-
-    return False
+    return is_install_method_deprecated(detected, configured)
 
 
 def format_migration_warning(tool_name: str) -> Optional[str]:

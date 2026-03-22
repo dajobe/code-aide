@@ -184,17 +184,12 @@ class TestCmdUpgrade(unittest.TestCase):
             mock.patch.dict(commands_actions.TOOLS, tools, clear=True),
             mock.patch.object(commands_actions, "validate_tools"),
             mock.patch.object(commands_actions, "is_tool_installed", return_value=True),
-            mock.patch.object(
-                commands_actions, "is_deprecated_install", return_value=False
-            ),
-            mock.patch.object(
-                commands_actions,
-                "detect_install_method",
+            mock.patch(
+                "code_aide.status.detect_install_method",
                 return_value={"method": "brew_formula", "detail": "brewtool"},
             ),
-            mock.patch.object(
-                commands_actions,
-                "get_brew_package_info",
+            mock.patch(
+                "code_aide.status.get_brew_package_info",
                 return_value={
                     "package": "brewtool",
                     "installed_version": "1.0.0",
@@ -203,7 +198,6 @@ class TestCmdUpgrade(unittest.TestCase):
                     "outdated": False,
                 },
             ),
-            mock.patch.object(commands_actions, "get_tool_status") as mock_status,
             mock.patch.object(commands_actions, "upgrade_tool") as mock_upgrade,
         ):
             buf = io.StringIO()
@@ -212,5 +206,77 @@ class TestCmdUpgrade(unittest.TestCase):
 
         output = buf.getvalue()
         self.assertIn("All installed tools are up to date", output)
-        mock_status.assert_not_called()
+        mock_upgrade.assert_not_called()
+
+    def test_default_upgrade_skips_tool_when_installed_is_newer_than_catalog(self):
+        tools = {
+            "x": {
+                "name": "Example Tool",
+                "command": "example",
+                "install_type": "script",
+                "latest_version": "1.0.0",
+            }
+        }
+        args = type("Args", (), {"tools": []})()
+
+        with (
+            mock.patch.dict(commands_actions.TOOLS, tools, clear=True),
+            mock.patch.object(commands_actions, "validate_tools"),
+            mock.patch.object(commands_actions, "is_tool_installed", return_value=True),
+            mock.patch(
+                "code_aide.status.detect_install_method",
+                return_value={"method": "script", "detail": None},
+            ),
+            mock.patch(
+                "code_aide.status.get_tool_status",
+                return_value={"installed": True, "version": "2.0.0"},
+            ),
+            mock.patch.object(commands_actions, "upgrade_tool") as mock_upgrade,
+        ):
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                commands_actions.cmd_upgrade(args)
+
+        output = buf.getvalue()
+        self.assertIn("All installed tools are up to date", output)
+        mock_upgrade.assert_not_called()
+
+    def test_default_upgrade_skips_system_managed_tool(self):
+        tools = {
+            "sys": {
+                "name": "System Tool",
+                "command": "sys-tool",
+                "install_type": "script",
+                "latest_version": "2.0.0",
+            }
+        }
+        args = type("Args", (), {"tools": []})()
+
+        with (
+            mock.patch.dict(commands_actions.TOOLS, tools, clear=True),
+            mock.patch.object(commands_actions, "validate_tools"),
+            mock.patch.object(commands_actions, "is_tool_installed", return_value=True),
+            mock.patch(
+                "code_aide.status.detect_install_method",
+                return_value={"method": "system", "detail": "/usr/bin/sys-tool"},
+            ),
+            mock.patch(
+                "code_aide.status.get_system_package_info",
+                return_value={
+                    "package": "dev-util/sys-tool",
+                    "installed_version": "2.0.0",
+                    "available_version": "2.0.0",
+                },
+            ),
+            mock.patch(
+                "code_aide.status.shutil.which", return_value="/usr/bin/sys-tool"
+            ),
+            mock.patch.object(commands_actions, "upgrade_tool") as mock_upgrade,
+        ):
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                commands_actions.cmd_upgrade(args)
+
+        output = buf.getvalue()
+        self.assertIn("All installed tools are up to date", output)
         mock_upgrade.assert_not_called()

@@ -1,5 +1,7 @@
 """Read-only CLI commands: list and status."""
 
+from __future__ import annotations
+
 import argparse
 import platform
 import shutil
@@ -9,21 +11,19 @@ from code_aide.constants import Colors, PACKAGE_MANAGERS, TOOLS
 from code_aide.detection import (
     format_install_method,
     format_migration_warning,
-    get_brew_package_info,
-    get_system_package_info,
     detect_install_method,
 )
 from code_aide.console import command_exists, info, warning
 from code_aide.prereqs import detect_package_manager, is_tool_installed
 from code_aide.status import (
-    get_tool_status,
     print_brew_version_status,
     print_system_version_status,
+    ToolUpgradeEvaluator,
+    UpgradeDecision,
+    VersionDisplayState,
 )
 from code_aide.versions import (
     extract_version_from_string,
-    status_version_matches_latest,
-    version_is_newer,
 )
 
 
@@ -116,20 +116,30 @@ def _short_install_method(method: str | None) -> str:
 
 
 def _compact_version_status(
-    version: str | None, latest_version: str | None
+    installed_version: str | None, version_state: VersionDisplayState
 ) -> tuple[str, str]:
     """Return (version_str, status_indicator) for compact display."""
-    if not version:
+    if not installed_version:
         return ("", "")
-    ver = extract_version_from_string(version) or version
+    ver = extract_version_from_string(installed_version) or installed_version
+    if version_state == VersionDisplayState.UP_TO_DATE:
+        return (ver, f"{Colors.GREEN}ok{Colors.NC}")
+    if version_state == VersionDisplayState.OUTDATED:
+        return (ver, f"{Colors.YELLOW}old{Colors.NC}")
+    return (ver, "")
+
+
+def _generic_version_annotation(
+    installed_version: str, latest_version: str | None
+) -> str:
+    """Return the generic version line for non-package-managed status."""
     if not latest_version:
-        return (ver, "")
-    if status_version_matches_latest(version, latest_version):
-        return (ver, f"{Colors.GREEN}ok{Colors.NC}")
-    if ver and version_is_newer(ver, latest_version):
-        # Installed is ahead of code-aide's known latest; treat as ok.
-        return (ver, f"{Colors.GREEN}ok{Colors.NC}")
-    return (ver, f"{Colors.YELLOW}old{Colors.NC}")
+        return f"  Version:      {installed_version}"
+
+    return (
+        f"  Version:      {installed_version} "
+        f"{Colors.YELLOW}(latest: {latest_version}){Colors.NC}"
+    )
 
 
 def cmd_status_compact() -> None:
@@ -137,7 +147,8 @@ def cmd_status_compact() -> None:
     rows: list[tuple[str, str, str, str, str]] = []
     for tool_name, tool_config in TOOLS.items():
         name = tool_config["command"]
-        status = get_tool_status(tool_name, tool_config)
+        assessment = ToolUpgradeEvaluator(tool_name, tool_config).evaluate()
+        status = assessment.status
 
         if not status["installed"]:
             opt_in = not tool_config.get("default_install", True)
@@ -149,10 +160,10 @@ def cmd_status_compact() -> None:
             continue
 
         tool_path = shutil.which(tool_config["command"]) or ""
-        install_info = detect_install_method(tool_name)
-        method = _short_install_method(install_info["method"])
-        latest_version = tool_config.get("latest_version")
-        ver, ver_status = _compact_version_status(status["version"], latest_version)
+        method = _short_install_method(assessment.install_method)
+        ver, ver_status = _compact_version_status(
+            assessment.installed_version, assessment.version_state
+        )
 
         state = f"{Colors.GREEN}ok{Colors.NC}"
         if ver_status:
@@ -200,100 +211,81 @@ def cmd_status(args: argparse.Namespace) -> None:
     for tool_name, tool_config in TOOLS.items():
         print(f"{Colors.BLUE}{tool_config['name']}{Colors.NC}")
 
-        status = get_tool_status(tool_name, tool_config)
+        tool_path = shutil.which(tool_config["command"])
+        assessment = ToolUpgradeEvaluator(
+            tool_name, tool_config, tool_path=tool_path
+        ).evaluate()
+        status = assessment.status
 
         if not status["installed"]:
             print(f"  Status:       {Colors.RED}✗ Not installed{Colors.NC}")
         else:
             print(f"  Status:       {Colors.GREEN}✓ Installed{Colors.NC}")
 
-            tool_path = shutil.which(tool_config["command"])
-            install_info = detect_install_method(tool_name)
-            is_system = install_info["method"] == "system"
-
             if status["version"]:
-                latest_version = tool_config.get("latest_version")
-
-                if is_system and tool_path:
-                    pkg_info = get_system_package_info(tool_path)
+                if (
+                    assessment.install_method == "system"
+                    and tool_path
+                    and assessment.package_info
+                ):
                     print_system_version_status(
-                        status["version"], latest_version, pkg_info
+                        status["version"],
+                        assessment.latest_version,
+                        assessment.package_info,
                     )
-                elif install_info["method"] in ("brew_formula", "brew_cask"):
-                    pkg_info = get_brew_package_info(
-                        install_info["method"], install_info["detail"]
-                    )
-                    if pkg_info.get("available_version"):
+                elif assessment.install_method in ("brew_formula", "brew_cask"):
+                    if assessment.package_info and assessment.package_info.get(
+                        "available_version"
+                    ):
                         print_brew_version_status(
-                            status["version"], latest_version, pkg_info
+                            status["version"],
+                            assessment.latest_version,
+                            assessment.package_info,
                         )
-                        if pkg_info.get("outdated"):
-                            outdated_count += 1
-                            outdated_tools.append(tool_name)
-                    elif latest_version:
-                        if status_version_matches_latest(
-                            status["version"], latest_version
-                        ):
-                            version_annotation = (
+                    elif assessment.latest_version:
+                        if assessment.version_state == VersionDisplayState.UP_TO_DATE:
+                            print(
                                 f"  Version:      {status['version']} "
                                 f"{Colors.GREEN}(up to date){Colors.NC}"
                             )
                         else:
-                            installed_ver = extract_version_from_string(
-                                status["version"]
+                            print(
+                                _generic_version_annotation(
+                                    status["version"], assessment.latest_version
+                                )
                             )
-                            if installed_ver and version_is_newer(
-                                installed_ver, latest_version
-                            ):
-                                # Catalog may lag the install; same as compact status.
-                                version_annotation = (
-                                    f"  Version:      {status['version']} "
-                                    f"{Colors.GREEN}(up to date){Colors.NC}"
-                                )
-                            else:
-                                version_annotation = (
-                                    f"  Version:      {status['version']} "
-                                    f"{Colors.YELLOW}(latest: {latest_version}){Colors.NC}"
-                                )
-                                outdated_count += 1
-                                outdated_tools.append(tool_name)
-                        print(version_annotation)
-                elif latest_version:
-                    if status_version_matches_latest(status["version"], latest_version):
-                        version_annotation = (
+                    else:
+                        print(f"  Version:      {status['version']}")
+                elif assessment.latest_version:
+                    if assessment.version_state == VersionDisplayState.UP_TO_DATE:
+                        print(
                             f"  Version:      {status['version']} "
                             f"{Colors.GREEN}(up to date){Colors.NC}"
                         )
                     else:
-                        installed_ver = extract_version_from_string(status["version"])
-                        if installed_ver and version_is_newer(
-                            installed_ver, latest_version
-                        ):
-                            version_annotation = (
-                                f"  Version:      {status['version']} "
-                                f"{Colors.GREEN}(up to date){Colors.NC}"
+                        print(
+                            _generic_version_annotation(
+                                status["version"], assessment.latest_version
                             )
-                        else:
-                            version_annotation = (
-                                f"  Version:      {status['version']} "
-                                f"{Colors.YELLOW}(latest: {latest_version}){Colors.NC}"
-                            )
-                            outdated_count += 1
-                            outdated_tools.append(tool_name)
-                    print(version_annotation)
+                        )
                 else:
                     print(f"  Version:      {status['version']}")
+
+                if assessment.decision == UpgradeDecision.UPGRADE:
+                    outdated_count += 1
+                    outdated_tools.append(tool_name)
 
             if tool_path:
                 print(f"  Location:     {tool_path}")
                 print(
                     "  Installed via: "
-                    f"{format_install_method(install_info['method'], install_info['detail'])}"
+                    f"{format_install_method(assessment.install_method, assessment.install_detail)}"
                 )
-                migration_msg = format_migration_warning(tool_name)
-                if migration_msg:
-                    warning(f"  {migration_msg}")
+                if assessment.decision == UpgradeDecision.MIGRATION:
                     migration_count += 1
+                    migration_msg = format_migration_warning(tool_name)
+                    if migration_msg:
+                        warning(f"  {migration_msg}")
 
             if status["user"]:
                 print(f"  User:         {status['user']}")

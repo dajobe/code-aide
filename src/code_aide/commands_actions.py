@@ -5,11 +5,7 @@ import sys
 from typing import Any, Dict, List
 
 from code_aide.constants import TOOLS
-from code_aide.detection import (
-    detect_install_method,
-    get_brew_package_info,
-    is_deprecated_install,
-)
+from code_aide.detection import detect_install_method, get_brew_package_info
 from code_aide.install import install_tool
 from code_aide.console import error, info, success, warning
 from code_aide.operations import (
@@ -23,14 +19,13 @@ from code_aide.prereqs import (
     check_prerequisites,
     is_tool_installed,
 )
-from code_aide.status import get_tool_status
+from code_aide.status import ToolUpgradeEvaluator
 from code_aide.versions import (
     apply_sha256_updates,
     check_npm_tool,
     check_script_tool,
     normalize_version,
     print_check_results_table,
-    status_version_matches_latest,
 )
 from code_aide.config import (
     load_bundled_tools,
@@ -131,28 +126,9 @@ def cmd_upgrade(args: argparse.Namespace) -> None:
     else:
         tools_to_upgrade = []
         for name, config in TOOLS.items():
-            if not is_tool_installed(name):
-                continue
-            if is_deprecated_install(name):
-                if name not in tools_to_upgrade:
-                    tools_to_upgrade.append(name)
-                continue
-            latest = config.get("latest_version")
-            if not latest:
-                continue
-            install_info = detect_install_method(name)
-            if install_info["method"] in ("brew_formula", "brew_cask"):
-                pkg_info = get_brew_package_info(
-                    install_info["method"], install_info["detail"]
-                )
-                if pkg_info.get("outdated") is False:
-                    continue
-            status = get_tool_status(name, config)
-            if status["version"] and status_version_matches_latest(
-                status["version"], latest
-            ):
-                continue
-            tools_to_upgrade.append(name)
+            assessment = ToolUpgradeEvaluator(name, config).evaluate()
+            if assessment.actionable_by_upgrade and name not in tools_to_upgrade:
+                tools_to_upgrade.append(name)
         if tools_to_upgrade:
             info(f"Upgrading out-of-date tools: {', '.join(tools_to_upgrade)}")
         else:

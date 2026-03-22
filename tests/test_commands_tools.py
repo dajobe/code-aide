@@ -60,17 +60,23 @@ class TestCmdStatus(unittest.TestCase):
         args = type("Args", (), {})()
         with (
             mock.patch.dict(commands_tools.TOOLS, tools, clear=True),
-            mock.patch.object(commands_tools, "get_tool_status", return_value=status),
             mock.patch.object(
                 commands_tools.shutil, "which", return_value="/tmp/example"
+            ),
+            mock.patch("code_aide.status.get_tool_status", return_value=status),
+            mock.patch.object(
+                commands_tools,
+                "format_migration_warning",
+                return_value=None,
             ),
             mock.patch.object(
                 commands_tools,
                 "detect_install_method",
                 return_value={"method": "npm", "detail": "example-pkg"},
             ),
-            mock.patch.object(
-                commands_tools, "format_migration_warning", return_value=None
+            mock.patch(
+                "code_aide.status.detect_install_method",
+                return_value={"method": "npm", "detail": "example-pkg"},
             ),
         ):
             buf = io.StringIO()
@@ -100,18 +106,26 @@ class TestCmdStatus(unittest.TestCase):
         args = type("Args", (), {})()
         with (
             mock.patch.dict(commands_tools.TOOLS, tools, clear=True),
-            mock.patch.object(commands_tools, "get_tool_status", return_value=status),
             mock.patch.object(
                 commands_tools.shutil, "which", return_value="/opt/homebrew/bin/example"
+            ),
+            mock.patch("code_aide.status.get_tool_status", return_value=status),
+            mock.patch.object(
+                commands_tools,
+                "format_migration_warning",
+                return_value=None,
             ),
             mock.patch.object(
                 commands_tools,
                 "detect_install_method",
                 return_value={"method": "brew_formula", "detail": "example"},
             ),
-            mock.patch.object(
-                commands_tools,
-                "get_brew_package_info",
+            mock.patch(
+                "code_aide.status.detect_install_method",
+                return_value={"method": "brew_formula", "detail": "example"},
+            ),
+            mock.patch(
+                "code_aide.status.get_brew_package_info",
                 return_value={
                     "package": "example",
                     "installed_version": "1.0.0",
@@ -119,9 +133,6 @@ class TestCmdStatus(unittest.TestCase):
                     "available_date": None,
                     "outdated": False,
                 },
-            ),
-            mock.patch.object(
-                commands_tools, "format_migration_warning", return_value=None
             ),
         ):
             buf = io.StringIO()
@@ -152,17 +163,23 @@ class TestCmdStatus(unittest.TestCase):
         args = type("Args", (), {})()
         with (
             mock.patch.dict(commands_tools.TOOLS, tools, clear=True),
-            mock.patch.object(commands_tools, "get_tool_status", return_value=status),
             mock.patch.object(
                 commands_tools.shutil, "which", return_value="/tmp/example"
+            ),
+            mock.patch("code_aide.status.get_tool_status", return_value=status),
+            mock.patch.object(
+                commands_tools,
+                "format_migration_warning",
+                return_value=None,
             ),
             mock.patch.object(
                 commands_tools,
                 "detect_install_method",
                 return_value={"method": "script", "detail": None},
             ),
-            mock.patch.object(
-                commands_tools, "format_migration_warning", return_value=None
+            mock.patch(
+                "code_aide.status.detect_install_method",
+                return_value={"method": "script", "detail": None},
             ),
         ):
             buf = io.StringIO()
@@ -193,13 +210,17 @@ class TestCmdStatus(unittest.TestCase):
         args = type("Args", (), {})()
         with (
             mock.patch.dict(commands_tools.TOOLS, tools, clear=True),
-            mock.patch.object(commands_tools, "get_tool_status", return_value=status),
             mock.patch.object(
                 commands_tools.shutil, "which", return_value="/tmp/example"
             ),
+            mock.patch("code_aide.status.get_tool_status", return_value=status),
             mock.patch.object(
                 commands_tools,
                 "detect_install_method",
+                return_value={"method": "npm", "detail": "example-pkg"},
+            ),
+            mock.patch(
+                "code_aide.status.detect_install_method",
                 return_value={"method": "npm", "detail": "example-pkg"},
             ),
             mock.patch.object(
@@ -215,6 +236,52 @@ class TestCmdStatus(unittest.TestCase):
         output = buf.getvalue()
         self.assertIn("configured method is script", output)
         self.assertIn("tool(s) need migration", output)
+
+    def test_compact_status_shows_ok_for_brew_tool_with_catalog_lag(self):
+        tools = {
+            "x": {
+                "name": "Example Tool",
+                "command": "example",
+                "install_type": "script",
+                "latest_version": "2.0.0",
+            }
+        }
+        status = {
+            "installed": True,
+            "version": "1.0.0",
+            "user": None,
+            "usage": None,
+            "errors": [],
+        }
+        args = type("Args", (), {"compact": True})()
+        with (
+            mock.patch.dict(commands_tools.TOOLS, tools, clear=True),
+            mock.patch.object(
+                commands_tools.shutil, "which", return_value="/opt/homebrew/bin/example"
+            ),
+            mock.patch("code_aide.status.get_tool_status", return_value=status),
+            mock.patch(
+                "code_aide.status.detect_install_method",
+                return_value={"method": "brew_formula", "detail": "example"},
+            ),
+            mock.patch(
+                "code_aide.status.get_brew_package_info",
+                return_value={
+                    "package": "example",
+                    "installed_version": "1.0.0",
+                    "available_version": "1.0.0",
+                    "available_date": None,
+                    "outdated": False,
+                },
+            ),
+        ):
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                commands_tools.cmd_status(args)
+        output = buf.getvalue()
+        self.assertIn("example", output)
+        self.assertIn("ok", output)
+        self.assertNotIn("old", output)
 
     def test_list_shows_migration_warning(self):
         """cmd_list shows migration warning for deprecated install."""
