@@ -1,13 +1,23 @@
 # AGENTS.md - AI Coding Agent Instructions
 
+- Always use `uv run` to run python code and scripts.
+- Run tests with `uv run pytest`.
+
 ## Key Design Decisions
 
-- No external dependencies - stdlib only
+- Runtime dependencies are stdlib only (`dependencies` in pyproject.toml).
+  Dev tooling (pytest, black, ruff) lives in `dependency-groups` for tests
+  and linting.
+- Primary supported environments are macOS and Linux (see pyproject
+  classifiers); avoid assuming Windows-specific behavior unless explicitly
+  in scope.
+- For planned behavior or refactors, read matching notes under `specs/`
+  before inventing design.
 - Two-layer version data: bundled definitions (with SHA256 checksums),
   user's local cache (~/.config/code-aide/versions.json)
 - All tests should pass before committing
 - pre-commit runs black and ruff on commit; run `black` to format and then
- `pre-commit run --all-files` to check before committing
+  `pre-commit run --all-files` to check before committing
 - When changing pyproject.toml dependencies, run `uv lock` and commit
   uv.lock
 - Write useful commit messages: start subjects with past-tense action verbs
