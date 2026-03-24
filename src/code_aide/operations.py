@@ -195,11 +195,12 @@ def upgrade_tool(tool_name: str) -> UpgradeResult:
             if not pkg_name:
                 error(f"No FreeBSD port configured for {tool_config['name']}")
                 return UpgradeResult.FAILED
-            run_command(
-                ["sudo", "pkg", "upgrade", "-y", pkg_name],
-                check=True,
-                capture=False,
-            )
+            cmd = ["sudo", "pkg", "upgrade", "-y"]
+            pkg_repo = tool_config.get("freebsd_pkg_repo")
+            if pkg_repo:
+                cmd.extend(["-r", pkg_repo])
+            cmd.append(pkg_name)
+            run_command(cmd, check=True, capture=False)
 
         elif method == InstallMethod.SYSTEM:
             error(
@@ -343,11 +344,12 @@ def remove_tool(tool_name: str) -> bool:
             if not pkg_name:
                 error(f"No FreeBSD port configured for {tool_config['name']}")
                 return False
-            run_command(
-                ["sudo", "pkg", "delete", "-y", pkg_name],
-                check=True,
-                capture=False,
-            )
+            cmd = ["sudo", "pkg", "delete", "-y"]
+            pkg_repo = tool_config.get("freebsd_pkg_repo")
+            if pkg_repo:
+                cmd.extend(["-r", pkg_repo])
+            cmd.append(pkg_name)
+            run_command(cmd, check=True, capture=False)
             success(f"{tool_config['name']} removed successfully")
 
         elif method == InstallMethod.SYSTEM:

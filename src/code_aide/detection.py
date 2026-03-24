@@ -290,7 +290,9 @@ def get_brew_package_info(
     return result
 
 
-def get_pkg_package_info(package_name: str) -> PackageVersionInfo:
+def get_pkg_package_info(
+    package_name: str, repo: Optional[str] = None
+) -> PackageVersionInfo:
     """Get package version info for a FreeBSD pkg-installed tool."""
     result: PackageVersionInfo = {
         "package": package_name,
@@ -318,8 +320,12 @@ def get_pkg_package_info(package_name: str) -> PackageVersionInfo:
         pass
 
     try:
+        rquery_cmd = ["pkg", "rquery"]
+        if repo:
+            rquery_cmd.extend(["-r", repo])
+        rquery_cmd.extend(["%v", package_name])
         proc = subprocess.run(
-            ["pkg", "rquery", "%v", package_name],
+            rquery_cmd,
             capture_output=True,
             text=True,
             timeout=10,

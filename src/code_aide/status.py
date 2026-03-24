@@ -251,7 +251,10 @@ class ToolUpgradeEvaluator:
             pkg_name = install_info.get("detail") or self.tool_config.get(
                 "freebsd_port"
             )
-            self._package_info = get_pkg_package_info(pkg_name) if pkg_name else None
+            pkg_repo = self.tool_config.get("freebsd_pkg_repo")
+            self._package_info = (
+                get_pkg_package_info(pkg_name, repo=pkg_repo) if pkg_name else None
+            )
         elif method == InstallMethod.SYSTEM:
             tool_path = self._tool_path or shutil.which(self.tool_config["command"])
             self._package_info = (
@@ -396,6 +399,7 @@ def print_pkg_version_status(
     cli_version: str,
     latest_version: Optional[str],
     pkg_info: PackageInfo,
+    repo: Optional[str] = None,
 ) -> None:
     """Print version status for a FreeBSD pkg-managed tool."""
     avail_ver = pkg_info.get("available_version")
@@ -411,6 +415,7 @@ def print_pkg_version_status(
 
     if avail_ver:
         pkg_name = pkg_info.get("package") or "FreeBSD pkg"
+        repo_suffix = f", {repo}" if repo else ""
         show_upstream = (
             latest_version
             and not status_version_matches_latest(avail_ver, latest_version)
@@ -420,11 +425,11 @@ def print_pkg_version_status(
         )
         if show_upstream:
             print(
-                f"  Packaged:     {avail_ver} ({pkg_name}) "
+                f"  Packaged:     {avail_ver} ({pkg_name}{repo_suffix}) "
                 f"{Colors.YELLOW}(upstream: {latest_version}){Colors.NC}"
             )
         else:
-            print(f"  Packaged:     {avail_ver} ({pkg_name})")
+            print(f"  Packaged:     {avail_ver} ({pkg_name}{repo_suffix})")
 
 
 def get_tool_status(tool_name: str, tool_config: Dict[str, Any]) -> ToolStatus:

@@ -218,6 +218,30 @@ class TestGetPkgPackageInfo(unittest.TestCase):
         self.assertEqual(result["available_version"], "2.1.63")
         self.assertFalse(result["outdated"])
 
+    @mock.patch.object(cli_detection, "command_exists", return_value=True)
+    @mock.patch.object(cli_detection.subprocess, "run")
+    def test_repo_passes_r_flag_to_rquery(self, mock_run, mock_cmd):
+        calls = []
+
+        def side_effect(cmd, **kwargs):
+            calls.append(list(cmd))
+            result = mock.Mock()
+            result.returncode = 0
+            result.stdout = "2.1.63\n"
+            return result
+
+        mock_run.side_effect = side_effect
+
+        cli_detection.get_pkg_package_info("claude-code", repo="FreeBSD-latest")
+
+        # pkg query (local) should NOT have -r
+        self.assertEqual(calls[0], ["pkg", "query", "%v", "claude-code"])
+        # pkg rquery (remote) should have -r
+        self.assertEqual(
+            calls[1],
+            ["pkg", "rquery", "-r", "FreeBSD-latest", "%v", "claude-code"],
+        )
+
 
 class TestFormatInstallMethodSystem(unittest.TestCase):
     """Tests for format_install_method with system method."""

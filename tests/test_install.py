@@ -99,6 +99,22 @@ class TestInstallToolFreeBSD(unittest.TestCase):
             ["sudo", "pkg", "install", "-y", "test-tool-port"], check=True
         )
 
+    @mock.patch.object(cli_install.platform, "system", return_value="FreeBSD")
+    @mock.patch.object(cli_install, "command_exists", return_value=False)
+    @mock.patch.object(cli_install, "run_command")
+    def test_freebsd_with_repo_passes_r_flag(self, mock_run, mock_cmd, mock_sys):
+        tool_config = self._make_tool_config(
+            freebsd_port="test-tool-port",
+            freebsd_pkg_repo="FreeBSD-latest",
+        )
+        with mock.patch.dict(cli_install.TOOLS, {"test": tool_config}, clear=True):
+            result = cli_install.install_tool("test")
+        self.assertTrue(result)
+        mock_run.assert_called_once_with(
+            ["sudo", "pkg", "install", "-y", "-r", "FreeBSD-latest", "test-tool-port"],
+            check=True,
+        )
+
 
 class TestExtractTarMember(unittest.TestCase):
     """Tests for extract_tar_member."""

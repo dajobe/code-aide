@@ -260,11 +260,20 @@ def install_tool(tool_name: str, dryrun: bool = False, force: bool = False) -> b
         if not freebsd_port:
             error(f"{tool_config['name']} is not available on FreeBSD (no port exists)")
             return False
+        pkg_repo = tool_config.get("freebsd_pkg_repo")
         if dryrun:
-            info(f"[DRYRUN] Would install FreeBSD port: pkg install {freebsd_port}")
+            repo_flag = f" -r {pkg_repo}" if pkg_repo else ""
+            info(
+                f"[DRYRUN] Would install FreeBSD port: "
+                f"pkg install{repo_flag} {freebsd_port}"
+            )
             return True
         try:
-            run_command(["sudo", "pkg", "install", "-y", freebsd_port], check=True)
+            cmd = ["sudo", "pkg", "install", "-y"]
+            if pkg_repo:
+                cmd.extend(["-r", pkg_repo])
+            cmd.append(freebsd_port)
+            run_command(cmd, check=True)
             success(f"{tool_config['name']} installed successfully via FreeBSD pkg")
             info(tool_config["next_steps"])
             if "docs_url" in tool_config:

@@ -257,6 +257,7 @@ def cmd_status(args: argparse.Namespace) -> None:
                             status["version"],
                             assessment.latest_version,
                             assessment.package_info,
+                            repo=tool_config.get("freebsd_pkg_repo"),
                         )
                     elif assessment.latest_version:
                         if assessment.version_state == VersionDisplayState.UP_TO_DATE:
