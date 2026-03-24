@@ -92,6 +92,132 @@ class TestDetectInstallMethod(unittest.TestCase):
             {"method": "system", "detail": "/usr/bin/claude"},
         )
 
+    @mock.patch.object(cli_detection, "is_freebsd", return_value=True)
+    @mock.patch.object(cli_detection, "_pkg_owns_file", return_value=True)
+    @mock.patch.object(cli_detection.os.path, "realpath")
+    @mock.patch.object(cli_detection.shutil, "which")
+    def test_detects_freebsd_pkg(self, mock_which, mock_realpath, mock_pkg, mock_fbsd):
+        mock_which.return_value = "/usr/local/bin/claude"
+        mock_realpath.return_value = "/usr/local/bin/claude"
+
+        self.assertEqual(
+            cli_detection.detect_install_method("claude"),
+            {"method": "pkg", "detail": "claude-code"},
+        )
+
+    @mock.patch.object(cli_detection, "is_freebsd", return_value=True)
+    @mock.patch.object(cli_detection, "_pkg_owns_file", return_value=False)
+    @mock.patch.object(cli_detection.os.path, "realpath")
+    @mock.patch.object(cli_detection.shutil, "which")
+    def test_freebsd_not_pkg_owned_falls_back_to_system(
+        self, mock_which, mock_realpath, mock_pkg, mock_fbsd
+    ):
+        mock_which.return_value = "/usr/local/bin/claude"
+        mock_realpath.return_value = "/usr/local/bin/claude"
+
+        self.assertEqual(
+            cli_detection.detect_install_method("claude"),
+            {"method": "system", "detail": "/usr/local/bin/claude"},
+        )
+
+    @mock.patch.object(cli_detection, "is_freebsd", return_value=False)
+    @mock.patch.object(cli_detection.os.path, "realpath")
+    @mock.patch.object(cli_detection.shutil, "which")
+    def test_not_freebsd_ignores_port(self, mock_which, mock_realpath, mock_fbsd):
+        mock_which.return_value = "/usr/local/bin/claude"
+        mock_realpath.return_value = "/usr/local/bin/claude"
+
+        self.assertEqual(
+            cli_detection.detect_install_method("claude"),
+            {"method": "system", "detail": "/usr/local/bin/claude"},
+        )
+
+
+class TestFormatInstallMethodPkg(unittest.TestCase):
+    """Tests for format_install_method with pkg method."""
+
+    def test_pkg_with_detail(self):
+        self.assertEqual(
+            cli_detection.format_install_method("pkg", "claude-code"),
+            "FreeBSD pkg (claude-code)",
+        )
+
+    def test_pkg_without_detail(self):
+        self.assertEqual(
+            cli_detection.format_install_method("pkg", None),
+            "FreeBSD pkg",
+        )
+
+
+class TestPkgNeverDeprecated(unittest.TestCase):
+    """Tests that pkg install method is never deprecated."""
+
+    def test_pkg_never_deprecated(self):
+        tool_config = {
+            "name": "Test Tool",
+            "command": "test-tool",
+            "install_type": "script",
+        }
+        with (
+            mock.patch.dict(cli_detection.TOOLS, {"test": tool_config}, clear=True),
+            mock.patch.object(
+                cli_detection,
+                "detect_install_method",
+                return_value={"method": "pkg", "detail": "test-tool"},
+            ),
+        ):
+            self.assertFalse(cli_detection.is_deprecated_install("test"))
+
+
+class TestGetPkgPackageInfo(unittest.TestCase):
+    """Tests for get_pkg_package_info."""
+
+    @mock.patch.object(cli_detection, "command_exists", return_value=False)
+    def test_no_pkg_command(self, mock_cmd):
+        result = cli_detection.get_pkg_package_info("claude-code")
+        self.assertEqual(result["package"], "claude-code")
+        self.assertIsNone(result["installed_version"])
+        self.assertIsNone(result["available_version"])
+
+    @mock.patch.object(cli_detection, "command_exists", return_value=True)
+    @mock.patch.object(cli_detection.subprocess, "run")
+    def test_parses_pkg_output(self, mock_run, mock_cmd):
+        def side_effect(cmd, **kwargs):
+            result = mock.Mock()
+            if cmd[1] == "query":
+                result.returncode = 0
+                result.stdout = "2.1.62\n"
+            elif cmd[1] == "rquery":
+                result.returncode = 0
+                result.stdout = "2.1.63\n"
+            else:
+                result.returncode = 1
+                result.stdout = ""
+            return result
+
+        mock_run.side_effect = side_effect
+
+        result = cli_detection.get_pkg_package_info("claude-code")
+        self.assertEqual(result["installed_version"], "2.1.62")
+        self.assertEqual(result["available_version"], "2.1.63")
+        self.assertTrue(result["outdated"])
+
+    @mock.patch.object(cli_detection, "command_exists", return_value=True)
+    @mock.patch.object(cli_detection.subprocess, "run")
+    def test_up_to_date(self, mock_run, mock_cmd):
+        def side_effect(cmd, **kwargs):
+            result = mock.Mock()
+            result.returncode = 0
+            result.stdout = "2.1.63\n"
+            return result
+
+        mock_run.side_effect = side_effect
+
+        result = cli_detection.get_pkg_package_info("claude-code")
+        self.assertEqual(result["installed_version"], "2.1.63")
+        self.assertEqual(result["available_version"], "2.1.63")
+        self.assertFalse(result["outdated"])
+
 
 class TestFormatInstallMethodSystem(unittest.TestCase):
     """Tests for format_install_method with system method."""

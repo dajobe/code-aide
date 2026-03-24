@@ -44,6 +44,15 @@ class TestInstallMethodParsing(unittest.TestCase):
     def test_install_method_from_type_returns_matching_method(self):
         self.assertEqual(install_method_from_type(InstallType.NPM), InstallMethod.NPM)
 
+    def test_parse_pkg_install_type(self):
+        self.assertEqual(parse_install_type("pkg"), InstallType.PKG)
+
+    def test_parse_pkg_install_method(self):
+        self.assertEqual(parse_install_method("pkg"), InstallMethod.PKG)
+
+    def test_install_method_from_pkg_type(self):
+        self.assertEqual(install_method_from_type(InstallType.PKG), InstallMethod.PKG)
+
 
 class TestDetectionTypedMethods(unittest.TestCase):
     """Tests for enum-returning detect_install_method behavior."""

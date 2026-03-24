@@ -88,7 +88,7 @@ ARCH_MAP = {
 def detect_os_arch() -> tuple:
     """Detect OS and architecture for direct download URLs."""
     os_name = platform.system().lower()
-    if os_name not in ("linux", "darwin"):
+    if os_name not in ("linux", "darwin", "freebsd"):
         raise RuntimeError(f"Unsupported OS: {os_name}")
 
     machine = platform.machine()
@@ -254,6 +254,28 @@ def install_tool(tool_name: str, dryrun: bool = False, force: bool = False) -> b
                 f"Reinstalling {tool_config['command']} despite existing binary at "
                 f"{tool_path}"
             )
+
+    if platform.system() == "FreeBSD":
+        freebsd_port = tool_config.get("freebsd_port")
+        if not freebsd_port:
+            error(f"{tool_config['name']} is not available on FreeBSD (no port exists)")
+            return False
+        if dryrun:
+            info(f"[DRYRUN] Would install FreeBSD port: pkg install {freebsd_port}")
+            return True
+        try:
+            run_command(["sudo", "pkg", "install", "-y", freebsd_port], check=True)
+            success(f"{tool_config['name']} installed successfully via FreeBSD pkg")
+            info(tool_config["next_steps"])
+            if "docs_url" in tool_config:
+                info(f"Documentation: {tool_config['docs_url']}")
+            return True
+        except subprocess.CalledProcessError as exc:
+            error(f"Failed to install {tool_config['name']}: {exc.stderr}")
+            return False
+        except Exception as exc:
+            error(f"Failed to install {tool_config['name']}: {exc}")
+            return False
 
     try:
         install_type = get_tool_install_type(tool_config)

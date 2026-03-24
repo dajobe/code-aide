@@ -36,7 +36,8 @@
         "--version"
       ],
       "docs_url": "https://code.claude.com/docs/en/setup",
-      "default_install": true
+      "default_install": true,
+      "freebsd_port": "claude-code"
     },
     "gemini": {
       "name": "Gemini CLI",
@@ -52,7 +53,8 @@
         "--version"
       ],
       "docs_url": "https://github.com/google-gemini/gemini-cli",
-      "default_install": true
+      "default_install": true,
+      "freebsd_port": "gemini-cli"
     },
     "amp": {
       "name": "Amp (Sourcegraph)",
@@ -84,7 +86,8 @@
         "--version"
       ],
       "docs_url": "https://github.com/openai/codex",
-      "default_install": false
+      "default_install": false,
+      "freebsd_port": "codex"
     },
     "copilot": {
       "name": "Copilot CLI",
@@ -100,7 +103,8 @@
         "--version"
       ],
       "docs_url": "https://github.com/github/copilot-cli",
-      "default_install": false
+      "default_install": false,
+      "freebsd_port": "github-copilot-cli"
     },
     "opencode": {
       "name": "OpenCode",

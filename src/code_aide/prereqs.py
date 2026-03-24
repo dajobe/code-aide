@@ -19,7 +19,7 @@ from code_aide.console import (
 
 def detect_package_manager() -> Optional[str]:
     """Detect the Linux distribution and return package manager name."""
-    if platform.system() != "Linux":
+    if platform.system() not in ("Linux", "FreeBSD"):
         return None
 
     for pkg_mgr_name, config in PACKAGE_MANAGERS.items():
@@ -78,9 +78,15 @@ def check_prerequisites(
     needed_prereqs = set()
     tools_needing_node = []
 
+    on_freebsd = platform.system() == "FreeBSD"
+
     for tool_name in tools_to_install:
         tool_config = TOOLS.get(tool_name)
         if not tool_config:
+            continue
+
+        # FreeBSD pkg handles all dependencies for ported tools
+        if on_freebsd and tool_config.get("freebsd_port"):
             continue
 
         needed_prereqs.update(tool_config.get("prerequisites", []))

@@ -17,6 +17,7 @@ class InstallType(_ValueEnum):
     NPM = "npm"
     SCRIPT = "script"
     DIRECT_DOWNLOAD = "direct_download"
+    PKG = "pkg"
 
 
 class InstallMethod(_ValueEnum):
@@ -29,6 +30,7 @@ class InstallMethod(_ValueEnum):
     SYSTEM = "system"
     SCRIPT = "script"
     DIRECT_DOWNLOAD = "direct_download"
+    PKG = "pkg"
 
 
 InstallTypeInput: TypeAlias = InstallType | str
@@ -40,6 +42,7 @@ _INSTALL_METHOD_BY_TYPE = {
     InstallType.NPM: InstallMethod.NPM,
     InstallType.SCRIPT: InstallMethod.SCRIPT,
     InstallType.DIRECT_DOWNLOAD: InstallMethod.DIRECT_DOWNLOAD,
+    InstallType.PKG: InstallMethod.PKG,
 }
 
 

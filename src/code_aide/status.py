@@ -12,6 +12,7 @@ from code_aide.detection import (
     PackageVersionInfo,
     detect_install_method,
     get_brew_package_info,
+    get_pkg_package_info,
     get_system_package_info,
     is_install_method_deprecated,
 )
@@ -123,6 +124,9 @@ class ToolUpgradeEvaluator:
             )
 
         if method in (InstallMethod.BREW_FORMULA, InstallMethod.BREW_CASK):
+            return self._evaluate_brew(status, install_info, package_info)
+
+        if method == InstallMethod.PKG:
             return self._evaluate_brew(status, install_info, package_info)
 
         if method == InstallMethod.SYSTEM:
@@ -243,6 +247,11 @@ class ToolUpgradeEvaluator:
             self._package_info = get_brew_package_info(
                 method, install_info.get("detail")
             )
+        elif method == InstallMethod.PKG:
+            pkg_name = install_info.get("detail") or self.tool_config.get(
+                "freebsd_port"
+            )
+            self._package_info = get_pkg_package_info(pkg_name) if pkg_name else None
         elif method == InstallMethod.SYSTEM:
             tool_path = self._tool_path or shutil.which(self.tool_config["command"])
             self._package_info = (
@@ -367,6 +376,41 @@ def print_brew_version_status(
         pkg_name = pkg_info.get("package") or "Homebrew"
         # Only show upstream when config's latest is newer than packaged version;
         # avoid showing a stale "upstream" that is older than what's installed.
+        show_upstream = (
+            latest_version
+            and not status_version_matches_latest(avail_ver, latest_version)
+            and version_is_newer(
+                normalize_version(latest_version), normalize_version(avail_ver)
+            )
+        )
+        if show_upstream:
+            print(
+                f"  Packaged:     {avail_ver} ({pkg_name}) "
+                f"{Colors.YELLOW}(upstream: {latest_version}){Colors.NC}"
+            )
+        else:
+            print(f"  Packaged:     {avail_ver} ({pkg_name})")
+
+
+def print_pkg_version_status(
+    cli_version: str,
+    latest_version: Optional[str],
+    pkg_info: PackageInfo,
+) -> None:
+    """Print version status for a FreeBSD pkg-managed tool."""
+    avail_ver = pkg_info.get("available_version")
+    outdated = pkg_info.get("outdated")
+
+    if outdated:
+        print(
+            f"  Version:      {cli_version} {Colors.YELLOW}(pkg has {avail_ver})"
+            f"{Colors.NC}"
+        )
+    else:
+        print(f"  Version:      {cli_version} {Colors.GREEN}(up to date){Colors.NC}")
+
+    if avail_ver:
+        pkg_name = pkg_info.get("package") or "FreeBSD pkg"
         show_upstream = (
             latest_version
             and not status_version_matches_latest(avail_ver, latest_version)

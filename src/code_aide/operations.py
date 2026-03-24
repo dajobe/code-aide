@@ -190,6 +190,17 @@ def upgrade_tool(tool_name: str) -> UpgradeResult:
             if not install_direct_download(tool_name, tool_config):
                 return UpgradeResult.FAILED
 
+        elif method == InstallMethod.PKG:
+            pkg_name = detail or tool_config.get("freebsd_port")
+            if not pkg_name:
+                error(f"No FreeBSD port configured for {tool_config['name']}")
+                return UpgradeResult.FAILED
+            run_command(
+                ["sudo", "pkg", "upgrade", "-y", pkg_name],
+                check=True,
+                capture=False,
+            )
+
         elif method == InstallMethod.SYSTEM:
             error(
                 f"{tool_config['name']} is managed by the system package manager. "
@@ -325,6 +336,18 @@ def remove_tool(tool_name: str) -> bool:
                         os.remove(install_path)
                         info(f"Removed: {install_path}")
 
+            success(f"{tool_config['name']} removed successfully")
+
+        elif method == InstallMethod.PKG:
+            pkg_name = detail or tool_config.get("freebsd_port")
+            if not pkg_name:
+                error(f"No FreeBSD port configured for {tool_config['name']}")
+                return False
+            run_command(
+                ["sudo", "pkg", "delete", "-y", pkg_name],
+                check=True,
+                capture=False,
+            )
             success(f"{tool_config['name']} removed successfully")
 
         elif method == InstallMethod.SYSTEM:

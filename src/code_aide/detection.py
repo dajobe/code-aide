@@ -3,6 +3,7 @@
 import glob as globmod
 import json
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -38,6 +39,29 @@ class PackageVersionInfo(TypedDict, total=False):
     available_version: str | None
     available_date: str | None
     outdated: bool | None
+
+
+def is_freebsd() -> bool:
+    """Return True when running on FreeBSD."""
+    return platform.system() == "FreeBSD"
+
+
+def _pkg_owns_file(path: str) -> bool:
+    """Return True when FreeBSD pkg owns the given file path."""
+    if not command_exists("pkg"):
+        return False
+    try:
+        proc = subprocess.run(
+            ["pkg", "which", "-q", path],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+            stdin=subprocess.DEVNULL,
+        )
+        return proc.returncode == 0 and bool(proc.stdout.strip())
+    except Exception:
+        return False
 
 
 def _empty_install_info() -> DetectedInstallInfo:
@@ -78,6 +102,9 @@ def detect_install_method(tool_name: str) -> DetectedInstallInfo:
 
     system_prefixes = ("/opt/", "/usr/bin/", "/usr/sbin/", "/usr/local/bin/")
     if any(real_path.startswith(prefix) for prefix in system_prefixes):
+        freebsd_port = tool_config.get("freebsd_port")
+        if is_freebsd() and freebsd_port and _pkg_owns_file(real_path):
+            return {"method": InstallMethod.PKG, "detail": freebsd_port}
         return {"method": InstallMethod.SYSTEM, "detail": real_path}
 
     return {
@@ -263,6 +290,53 @@ def get_brew_package_info(
     return result
 
 
+def get_pkg_package_info(package_name: str) -> PackageVersionInfo:
+    """Get package version info for a FreeBSD pkg-installed tool."""
+    result: PackageVersionInfo = {
+        "package": package_name,
+        "installed_version": None,
+        "available_version": None,
+        "available_date": None,
+        "outdated": None,
+    }
+
+    if not command_exists("pkg"):
+        return result
+
+    try:
+        proc = subprocess.run(
+            ["pkg", "query", "%v", package_name],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+            stdin=subprocess.DEVNULL,
+        )
+        if proc.returncode == 0 and proc.stdout.strip():
+            result["installed_version"] = proc.stdout.strip().split("\n")[0]
+    except Exception:
+        pass
+
+    try:
+        proc = subprocess.run(
+            ["pkg", "rquery", "%v", package_name],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+            stdin=subprocess.DEVNULL,
+        )
+        if proc.returncode == 0 and proc.stdout.strip():
+            result["available_version"] = proc.stdout.strip().split("\n")[0]
+    except Exception:
+        pass
+
+    if result["installed_version"] and result["available_version"]:
+        result["outdated"] = result["installed_version"] != result["available_version"]
+
+    return result
+
+
 def format_install_method(method: InstallMethodInput, detail: Optional[str]) -> str:
     """Format detected local install method for display."""
     install_method = parse_install_method(method)
@@ -279,6 +353,8 @@ def format_install_method(method: InstallMethodInput, detail: Optional[str]) -> 
             if detail
             else "Homebrew prefix npm-global"
         )
+    if install_method == InstallMethod.PKG:
+        return f"FreeBSD pkg ({detail})" if detail else "FreeBSD pkg"
     if install_method == InstallMethod.SYSTEM:
         return f"system package ({detail})" if detail else "system package"
     if install_method == InstallMethod.SCRIPT or install_type == InstallType.SCRIPT:
@@ -299,6 +375,7 @@ _USER_MANAGED_METHODS = frozenset(
         InstallMethod.BREW_FORMULA,
         InstallMethod.BREW_CASK,
         InstallMethod.SYSTEM,
+        InstallMethod.PKG,
     }
 )
 

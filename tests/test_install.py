@@ -45,6 +45,60 @@ class TestDetectOsArch(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             cli_install.detect_os_arch()
 
+    @mock.patch.object(cli_install.platform, "machine", return_value="amd64")
+    @mock.patch.object(cli_install.platform, "system", return_value="FreeBSD")
+    def test_freebsd_amd64(self, mock_sys, mock_mach):
+        self.assertEqual(cli_install.detect_os_arch(), ("freebsd", "x64"))
+
+    @mock.patch.object(cli_install.platform, "machine", return_value="arm64")
+    @mock.patch.object(cli_install.platform, "system", return_value="FreeBSD")
+    def test_freebsd_arm64(self, mock_sys, mock_mach):
+        self.assertEqual(cli_install.detect_os_arch(), ("freebsd", "arm64"))
+
+
+class TestInstallToolFreeBSD(unittest.TestCase):
+    """Tests for install_tool on FreeBSD."""
+
+    def _make_tool_config(self, **overrides):
+        base = {
+            "name": "Test Tool",
+            "command": "test-tool",
+            "install_type": "npm",
+            "npm_package": "test-tool",
+            "next_steps": "Run test-tool",
+            "docs_url": "https://example.com",
+        }
+        base.update(overrides)
+        return base
+
+    @mock.patch.object(cli_install.platform, "system", return_value="FreeBSD")
+    @mock.patch.object(cli_install, "command_exists", return_value=False)
+    def test_freebsd_no_port_returns_false(self, mock_cmd, mock_sys):
+        tool_config = self._make_tool_config()
+        with mock.patch.dict(cli_install.TOOLS, {"test": tool_config}, clear=True):
+            result = cli_install.install_tool("test")
+        self.assertFalse(result)
+
+    @mock.patch.object(cli_install.platform, "system", return_value="FreeBSD")
+    @mock.patch.object(cli_install, "command_exists", return_value=False)
+    def test_freebsd_with_port_dryrun(self, mock_cmd, mock_sys):
+        tool_config = self._make_tool_config(freebsd_port="test-tool-port")
+        with mock.patch.dict(cli_install.TOOLS, {"test": tool_config}, clear=True):
+            result = cli_install.install_tool("test", dryrun=True)
+        self.assertTrue(result)
+
+    @mock.patch.object(cli_install.platform, "system", return_value="FreeBSD")
+    @mock.patch.object(cli_install, "command_exists", return_value=False)
+    @mock.patch.object(cli_install, "run_command")
+    def test_freebsd_with_port_installs_via_pkg(self, mock_run, mock_cmd, mock_sys):
+        tool_config = self._make_tool_config(freebsd_port="test-tool-port")
+        with mock.patch.dict(cli_install.TOOLS, {"test": tool_config}, clear=True):
+            result = cli_install.install_tool("test")
+        self.assertTrue(result)
+        mock_run.assert_called_once_with(
+            ["sudo", "pkg", "install", "-y", "test-tool-port"], check=True
+        )
+
 
 class TestExtractTarMember(unittest.TestCase):
     """Tests for extract_tar_member."""

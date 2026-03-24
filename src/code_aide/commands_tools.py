@@ -20,8 +20,10 @@ from code_aide.install_types import (
     parse_install_type,
 )
 from code_aide.prereqs import detect_package_manager, is_tool_installed
+from code_aide.detection import is_freebsd
 from code_aide.status import (
     print_brew_version_status,
+    print_pkg_version_status,
     print_system_version_status,
     ToolUpgradeEvaluator,
     UpgradeDecision,
@@ -67,6 +69,9 @@ def cmd_list(args: argparse.Namespace) -> None:
 
         if tool_config.get("min_node_version"):
             print(f"  Requires:     Node.js v{tool_config['min_node_version']}+")
+
+        if is_freebsd() and not tool_config.get("freebsd_port"):
+            print("  Note:         Not available on FreeBSD")
 
         if not tool_config.get("default_install", True):
             print(
@@ -116,6 +121,7 @@ def _short_install_method(method: str | None) -> str:
         InstallMethod.NPM: "npm",
         InstallMethod.BREW_NPM: "brew-npm",
         InstallMethod.SYSTEM: "system",
+        InstallMethod.PKG: "pkg",
         InstallMethod.SCRIPT: "script",
         InstallMethod.DIRECT_DOWNLOAD: "download",
     }
@@ -243,6 +249,29 @@ def cmd_status(args: argparse.Namespace) -> None:
                         assessment.latest_version,
                         assessment.package_info,
                     )
+                elif assessment.install_method == InstallMethod.PKG:
+                    if assessment.package_info and assessment.package_info.get(
+                        "available_version"
+                    ):
+                        print_pkg_version_status(
+                            status["version"],
+                            assessment.latest_version,
+                            assessment.package_info,
+                        )
+                    elif assessment.latest_version:
+                        if assessment.version_state == VersionDisplayState.UP_TO_DATE:
+                            print(
+                                f"  Version:      {status['version']} "
+                                f"{Colors.GREEN}(up to date){Colors.NC}"
+                            )
+                        else:
+                            print(
+                                _generic_version_annotation(
+                                    status["version"], assessment.latest_version
+                                )
+                            )
+                    else:
+                        print(f"  Version:      {status['version']}")
                 elif assessment.install_method in (
                     InstallMethod.BREW_FORMULA,
                     InstallMethod.BREW_CASK,

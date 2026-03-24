@@ -57,6 +57,13 @@ PACKAGE_MANAGERS: Dict[str, Dict[str, Any]] = {
         "install_command": ["sudo", "emerge", "--quiet-build"],
         "description": "Gentoo",
     },
+    "pkg": {
+        "detect_command": "pkg",
+        "packages": ["node22", "npm-node22"],
+        "pre_install": [],
+        "install_command": ["sudo", "pkg", "install", "-y"],
+        "description": "FreeBSD",
+    },
 }
 
 
