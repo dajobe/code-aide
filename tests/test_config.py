@@ -146,5 +146,67 @@ class TestMergeInstallSha256DirectDownload(unittest.TestCase):
         self.assertNotIn("install_sha256", entry)
 
 
+class TestMergeInstallSha256StaleCacheIgnored(unittest.TestCase):
+    """Stale cached install_sha256 must not override updated bundled hash."""
+
+    def test_bundled_sha256_wins_over_stale_cache(self):
+        tools = {
+            "amp": {
+                "install_type": "script",
+                "name": "Amp",
+                "command": "amp",
+                "install_sha256": "new_bundled_hash_from_release",
+            }
+        }
+        cache = {
+            "tools": {
+                "amp": {
+                    "install_sha256": "old_cached_hash",
+                }
+            }
+        }
+        code_aide_config.merge_cached_versions(tools, cache)
+        self.assertEqual(
+            tools["amp"]["install_sha256"], "new_bundled_hash_from_release"
+        )
+
+    def test_cache_applies_when_bundled_sha256_absent(self):
+        tools = {
+            "amp": {
+                "install_type": "script",
+                "name": "Amp",
+                "command": "amp",
+            }
+        }
+        cache = {
+            "tools": {
+                "amp": {
+                    "install_sha256": "cached_hash",
+                }
+            }
+        }
+        code_aide_config.merge_cached_versions(tools, cache)
+        self.assertEqual(tools["amp"]["install_sha256"], "cached_hash")
+
+    def test_cache_applies_when_sha256_matches_bundled(self):
+        tools = {
+            "amp": {
+                "install_type": "script",
+                "name": "Amp",
+                "command": "amp",
+                "install_sha256": "same_hash",
+            }
+        }
+        cache = {
+            "tools": {
+                "amp": {
+                    "install_sha256": "same_hash",
+                }
+            }
+        }
+        code_aide_config.merge_cached_versions(tools, cache)
+        self.assertEqual(tools["amp"]["install_sha256"], "same_hash")
+
+
 if __name__ == "__main__":
     unittest.main()

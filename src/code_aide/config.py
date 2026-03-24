@@ -66,20 +66,35 @@ DYNAMIC_FIELDS = ["latest_version", "latest_date", "install_sha256"]
 
 
 def merge_cached_versions(tools: dict, cache: dict) -> None:
-    """Merge cached dynamic fields into tool definitions in-place."""
+    """Merge cached dynamic fields into tool definitions in-place.
+
+    For install_sha256, the bundled value takes precedence when it differs
+    from the cache, since a new release with an updated hash means the
+    cache is stale.
+    """
     cached_tools = cache.get("tools", {})
     for tool_key, tool_data in tools.items():
         if tool_key in cached_tools:
             for field in DYNAMIC_FIELDS:
                 if field in cached_tools[tool_key]:
-                    if (
-                        field == "install_sha256"
-                        and parse_install_type(tool_data.get("install_type"))
-                        == InstallType.DIRECT_DOWNLOAD
-                    ):
-                        # Script checksum does not apply to tarball installs; ignore
-                        # stale cache from older releases or mistaken updates.
-                        continue
+                    if field == "install_sha256":
+                        install_type = parse_install_type(
+                            tool_data.get("install_type")
+                        )
+                        if install_type == InstallType.DIRECT_DOWNLOAD:
+                            # Script checksum does not apply to tarball installs;
+                            # ignore stale cache from older releases.
+                            continue
+                        bundled_sha = tool_data.get("install_sha256")
+                        cached_sha = cached_tools[tool_key][field]
+                        if (
+                            bundled_sha
+                            and cached_sha
+                            and bundled_sha != cached_sha
+                        ):
+                            # Bundled hash was updated in a newer release;
+                            # discard stale cached hash.
+                            continue
                     tool_data[field] = cached_tools[tool_key][field]
 
 
