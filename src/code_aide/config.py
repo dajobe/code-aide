@@ -78,20 +78,14 @@ def merge_cached_versions(tools: dict, cache: dict) -> None:
             for field in DYNAMIC_FIELDS:
                 if field in cached_tools[tool_key]:
                     if field == "install_sha256":
-                        install_type = parse_install_type(
-                            tool_data.get("install_type")
-                        )
+                        install_type = parse_install_type(tool_data.get("install_type"))
                         if install_type == InstallType.DIRECT_DOWNLOAD:
                             # Script checksum does not apply to tarball installs;
                             # ignore stale cache from older releases.
                             continue
                         bundled_sha = tool_data.get("install_sha256")
                         cached_sha = cached_tools[tool_key][field]
-                        if (
-                            bundled_sha
-                            and cached_sha
-                            and bundled_sha != cached_sha
-                        ):
+                        if bundled_sha and cached_sha and bundled_sha != cached_sha:
                             # Bundled hash was updated in a newer release;
                             # discard stale cached hash.
                             continue
