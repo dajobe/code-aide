@@ -16,6 +16,32 @@ from code_aide.install_types import InstallType, get_tool_install_type
 from code_aide.versions import check_script_tool, fetch_url
 
 
+def run_pkg_command(
+    base_cmd: list,
+    pkg_name: str,
+    pkg_repo: Optional[str] = None,
+    **kwargs: Any,
+) -> None:
+    """Run a FreeBSD pkg command, falling back without -r if the repo is unavailable."""
+    if pkg_repo:
+        cmd = base_cmd + ["-r", pkg_repo, pkg_name]
+        try:
+            run_command(cmd, **kwargs)
+            return
+        except subprocess.CalledProcessError:
+            warning(f"Repository '{pkg_repo}' is not available. " f"To enable it, run:")
+            warning(
+                "  sudo mkdir -p /usr/local/etc/pkg/repos && "
+                "sudo sed 's/quarterly/latest/' /etc/pkg/FreeBSD.conf "
+                "> /usr/local/etc/pkg/repos/FreeBSD-latest.conf && "
+                "sudo pkg update"
+            )
+            info("Falling back to default repository...")
+
+    cmd = base_cmd + [pkg_name]
+    run_command(cmd, **kwargs)
+
+
 def run_install_script(
     install_url: str,
     tool_name: str,
@@ -269,11 +295,12 @@ def install_tool(tool_name: str, dryrun: bool = False, force: bool = False) -> b
             )
             return True
         try:
-            cmd = ["sudo", "pkg", "install", "-y"]
-            if pkg_repo:
-                cmd.extend(["-r", pkg_repo])
-            cmd.append(freebsd_port)
-            run_command(cmd, check=True)
+            run_pkg_command(
+                ["sudo", "pkg", "install", "-y"],
+                freebsd_port,
+                pkg_repo=pkg_repo,
+                check=True,
+            )
             success(f"{tool_config['name']} installed successfully via FreeBSD pkg")
             info(tool_config["next_steps"])
             if "docs_url" in tool_config:

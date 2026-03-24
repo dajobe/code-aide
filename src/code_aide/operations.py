@@ -14,7 +14,12 @@ from code_aide.detection import (
     format_install_method,
     is_deprecated_install,
 )
-from code_aide.install import install_direct_download, install_tool, run_install_script
+from code_aide.install import (
+    install_direct_download,
+    install_tool,
+    run_install_script,
+    run_pkg_command,
+)
 from code_aide.install_types import (
     InstallMethod,
     InstallType,
@@ -196,11 +201,13 @@ def upgrade_tool(tool_name: str) -> UpgradeResult:
                 error(f"No FreeBSD port configured for {tool_config['name']}")
                 return UpgradeResult.FAILED
             pkg_repo = tool_config.get("freebsd_pkg_repo")
-            cmd = ["sudo", "pkg", "install", "-y", "-f"]
-            if pkg_repo:
-                cmd.extend(["-r", pkg_repo])
-            cmd.append(pkg_name)
-            run_command(cmd, check=True, capture=False)
+            run_pkg_command(
+                ["sudo", "pkg", "install", "-y", "-f"],
+                pkg_name,
+                pkg_repo=pkg_repo,
+                check=True,
+                capture=False,
+            )
 
         elif method == InstallMethod.SYSTEM:
             error(
