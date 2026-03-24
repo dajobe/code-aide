@@ -29,13 +29,9 @@ def run_pkg_command(
             run_command(cmd, **kwargs)
             return
         except subprocess.CalledProcessError:
-            warning(f"Repository '{pkg_repo}' is not available. To enable it, run:")
-            warning(
-                "  sudo mkdir -p /usr/local/etc/pkg/repos && "
-                "sudo sh -c \"sed 's/quarterly/latest/' /etc/pkg/FreeBSD.conf "
-                '> /usr/local/etc/pkg/repos/FreeBSD-latest.conf" && '
-                "sudo pkg update"
-            )
+            warning(f"Repository '{pkg_repo}' is not available. To enable it:")
+            warning("  See https://wiki.freebsd.org/Ports/Quarterly for instructions")
+            warning("  Then run: sudo pkg update")
             info("Falling back to default repository...")
 
     cmd = base_cmd + [pkg_name]
