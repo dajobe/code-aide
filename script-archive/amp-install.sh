@@ -10,6 +10,7 @@ AMP_HOME="${AMP_HOME:-$HOME/.amp}"
 BIN_DIR="$AMP_HOME/bin"
 STORAGE_BASE="https://static.ampcode.com"
 AMP_URL="${AMP_URL:-https://ampcode.com}"
+AMP_VERSION="${AMP_VERSION:-}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -231,12 +232,17 @@ install_amp_binary() {
 		binary_name="amp.exe"
 	fi
 
-	# Fetch version first to ensure consistent downloads (avoids race conditions
-	# where a new version is published mid-download)
-	log "Fetching latest version..."
 	local version
-	version=$(fetch_latest_version)
-	log "Installing version: $version"
+	if [[ -n "$AMP_VERSION" ]]; then
+		version="$AMP_VERSION"
+		log "Installing requested version: $version"
+	else
+		# Fetch version first to ensure consistent downloads (avoids race conditions
+		# where a new version is published mid-download)
+		log "Fetching latest version..."
+		version=$(fetch_latest_version)
+		log "Installing version: $version"
+	fi
 
 	# Use versioned URLs if available, fall back to root for backwards compatibility
 	local binary_url="$STORAGE_BASE/cli/${version}/amp-${platform}"
