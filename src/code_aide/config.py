@@ -135,14 +135,26 @@ def save_updated_versions(tools: dict) -> None:
     save_versions_cache(cache_data)
 
 
-def versions_cache_is_fresh() -> bool:
-    """Return True if the versions cache exists and is less than 24h old."""
+def versions_cache_is_fresh(tools: dict) -> bool:
+    """Return True if the versions cache exists, is recent, and complete."""
     cache_path = get_versions_cache_path()
     try:
         age = time.time() - os.path.getmtime(cache_path)
-        return age < CACHE_MAX_AGE_SECONDS
+        if age >= CACHE_MAX_AGE_SECONDS:
+            return False
     except OSError:
         return False
+
+    # Check that every versionable tool has latest_version populated.
+    for tool_config in tools.values():
+        install_type = parse_install_type(tool_config.get("install_type"))
+        if install_type == InstallType.NPM:
+            if not tool_config.get("latest_version"):
+                return False
+        elif install_type in (InstallType.SCRIPT, InstallType.DIRECT_DOWNLOAD):
+            if tool_config.get("version_url") and not tool_config.get("latest_version"):
+                return False
+    return True
 
 
 def refresh_versions_cache(tools: dict) -> None:
@@ -187,6 +199,6 @@ def refresh_versions_cache(tools: dict) -> None:
 
 
 def ensure_versions_cache(tools: dict) -> None:
-    """Refresh versions cache if missing or stale, updating tools in-place."""
-    if not versions_cache_is_fresh():
+    """Refresh versions cache if missing, stale, or incomplete."""
+    if not versions_cache_is_fresh(tools):
         refresh_versions_cache(tools)
