@@ -14,6 +14,7 @@ from code_aide.detection import (
     format_install_method,
     is_deprecated_install,
 )
+from code_aide.package_managers import query_package_owner
 from code_aide.install import (
     install_direct_download,
     install_tool,
@@ -83,6 +84,44 @@ def _upgrade_result_from_snapshots(
     return UpgradeResult.CHANGED
 
 
+def _warn_duplicate_system_install(tool_name: str) -> None:
+    """Warn if a duplicate system-packaged binary shadows or coexists."""
+    tool_config = TOOLS[tool_name]
+    command = tool_config["command"]
+
+    # Find all instances of the command in PATH
+    seen = set()
+    paths = []
+    for directory in os.environ.get("PATH", "").split(os.pathsep):
+        candidate = os.path.join(directory, command)
+        if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+            real = os.path.realpath(candidate)
+            if real not in seen:
+                seen.add(real)
+                paths.append(real)
+
+    if len(paths) < 2:
+        return
+
+    system_prefixes = ("/opt/", "/usr/bin/", "/usr/sbin/", "/usr/local/bin/")
+    for path in paths:
+        if not any(path.startswith(p) for p in system_prefixes):
+            continue
+        package, remove_cmd = query_package_owner(path)
+        if package and remove_cmd:
+            warning(
+                f"A system-packaged {command} is also installed at {path} "
+                f"(package: {package})."
+            )
+            info(f"To remove it, run:  {remove_cmd}")
+        else:
+            warning(
+                f"A system-packaged {command} is also installed at {path}. "
+                "You may want to remove it with your package manager."
+            )
+        return
+
+
 def _migrate_install_method(tool_name: str) -> UpgradeResult:
     """Migrate a tool from a deprecated install method to the configured one.
 
@@ -129,6 +168,7 @@ def _migrate_install_method(tool_name: str) -> UpgradeResult:
         return UpgradeResult.FAILED
 
     success(f"{tool_config['name']} migrated from {old_label} to {new_label}")
+    _warn_duplicate_system_install(tool_name)
     return UpgradeResult.CHANGED
 
 

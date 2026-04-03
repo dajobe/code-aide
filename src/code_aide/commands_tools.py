@@ -8,7 +8,7 @@ import shutil
 from typing import List
 
 from code_aide.config import ensure_versions_cache
-from code_aide.constants import Colors, PACKAGE_MANAGERS, TOOLS
+from code_aide.constants import Colors, TOOLS
 from code_aide.detection import (
     format_install_method,
     format_migration_warning,
@@ -20,7 +20,10 @@ from code_aide.install_types import (
     parse_install_method,
     parse_install_type,
 )
-from code_aide.prereqs import detect_package_manager, is_tool_installed
+from code_aide.package_managers import (
+    detect_package_manager as _detect_package_manager,
+)
+from code_aide.prereqs import is_tool_installed
 from code_aide.detection import is_freebsd
 from code_aide.status import (
     print_brew_version_status,
@@ -107,11 +110,9 @@ def cmd_list(args: argparse.Namespace) -> None:
         except Exception:
             pass
 
-    pkg_mgr = detect_package_manager()
+    pkg_mgr = _detect_package_manager()
     if pkg_mgr:
-        print(
-            f"  Package manager: {PACKAGE_MANAGERS[pkg_mgr]['description']} ({pkg_mgr})"
-        )
+        print(f"  Package manager: {pkg_mgr.description} ({pkg_mgr.detect_command})")
 
 
 def _short_install_method(method: str | None) -> str:

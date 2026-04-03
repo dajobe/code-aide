@@ -26,7 +26,7 @@ class TestCmdList(unittest.TestCase):
             mock.patch.object(commands_tools, "is_tool_installed", return_value=False),
             mock.patch.object(commands_tools, "command_exists", return_value=False),
             mock.patch.object(
-                commands_tools, "detect_package_manager", return_value=None
+                commands_tools, "_detect_package_manager", return_value=None
             ),
         ):
             buf = io.StringIO()
@@ -314,7 +314,7 @@ class TestCmdStatus(unittest.TestCase):
             ),
             mock.patch.object(commands_tools, "command_exists", return_value=False),
             mock.patch.object(
-                commands_tools, "detect_package_manager", return_value=None
+                commands_tools, "_detect_package_manager", return_value=None
             ),
         ):
             buf = io.StringIO()

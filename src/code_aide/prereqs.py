@@ -6,7 +6,7 @@ import subprocess
 import sys
 from typing import List, Optional
 
-from code_aide.constants import PACKAGE_MANAGERS, TOOLS
+from code_aide.constants import TOOLS
 from code_aide.console import (
     command_exists,
     error,
@@ -15,42 +15,38 @@ from code_aide.console import (
     success,
     warning,
 )
+from code_aide.package_managers import (
+    _MANAGERS,
+    detect_package_manager,
+)
 
 
-def detect_package_manager() -> Optional[str]:
-    """Detect the Linux distribution and return package manager name."""
-    if platform.system() not in ("Linux", "FreeBSD"):
-        return None
-
-    for pkg_mgr_name, config in PACKAGE_MANAGERS.items():
-        if command_exists(config["detect_command"]):
-            return pkg_mgr_name
-
-    return None
+def _print_all_install_hints() -> None:
+    """Print install commands for all known package managers."""
+    for mgr in _MANAGERS:
+        install_cmd = " ".join(mgr.install_command + mgr.packages)
+        print(f"  {mgr.description}: {install_cmd}")
+    print("  Or visit: https://nodejs.org/")
 
 
 def install_nodejs_npm() -> bool:
     """Install Node.js and npm using the system package manager."""
-    pkg_mgr_name = detect_package_manager()
+    mgr = detect_package_manager()
 
-    if not pkg_mgr_name:
+    if not mgr:
         error("Could not detect package manager. Please install Node.js manually:")
-        for manager_name, config in PACKAGE_MANAGERS.items():
-            install_cmd = " ".join(config["install_command"] + config["packages"])
-            print(f"  {config['description']}: {install_cmd}")
-        print("  Or visit: https://nodejs.org/")
+        _print_all_install_hints()
         return False
 
-    config = PACKAGE_MANAGERS[pkg_mgr_name]
-    info(f"Detected package manager: {pkg_mgr_name} ({config['description']})")
+    info(f"Detected package manager: {mgr.detect_command} ({mgr.description})")
     info("Installing Node.js and npm...")
 
     try:
-        for pre_cmd in config["pre_install"]:
+        for pre_cmd in mgr.pre_install:
             info(f"Running: {' '.join(pre_cmd)}")
-            run_command(pre_cmd, check=True, capture=False)
+            run_command(list(pre_cmd), check=True, capture=False)
 
-        install_cmd = config["install_command"] + config["packages"]
+        install_cmd = list(mgr.install_command) + list(mgr.packages)
         run_command(install_cmd, check=True, capture=False)
 
         if not command_exists("npm"):
@@ -102,12 +98,7 @@ def check_prerequisites(
             else:
                 error("npm is required but not installed.")
                 error("Please install Node.js and npm first:")
-                for manager_name, config in PACKAGE_MANAGERS.items():
-                    install_cmd = " ".join(
-                        config["install_command"] + config["packages"]
-                    )
-                    print(f"  {config['description']}: {install_cmd}")
-                print("  Or visit: https://nodejs.org/")
+                _print_all_install_hints()
                 print("\nOr use -p/--install-prerequisites to install automatically")
                 sys.exit(1)
 
