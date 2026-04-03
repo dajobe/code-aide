@@ -7,6 +7,7 @@ import platform
 import shutil
 from typing import List
 
+from code_aide.config import ensure_versions_cache
 from code_aide.constants import Colors, PACKAGE_MANAGERS, TOOLS
 from code_aide.detection import (
     format_install_method,
@@ -142,7 +143,7 @@ def _compact_version_status(
         return (ver, f"{Colors.GREEN}ok{Colors.NC}")
     if version_state == VersionDisplayState.OUTDATED:
         return (ver, f"{Colors.YELLOW}old{Colors.NC}")
-    return (ver, "")
+    return (ver, "?")
 
 
 def _generic_version_annotation(
@@ -160,6 +161,7 @@ def _generic_version_annotation(
 
 def cmd_status_compact() -> None:
     """Show compact one-line-per-tool status."""
+    ensure_versions_cache(TOOLS)
     rows: list[tuple[str, str, str, str, str]] = []
     for tool_name, tool_config in TOOLS.items():
         name = tool_config["command"]
@@ -181,9 +183,7 @@ def cmd_status_compact() -> None:
             assessment.installed_version, assessment.version_state
         )
 
-        state = f"{Colors.GREEN}ok{Colors.NC}"
-        if ver_status:
-            state = ver_status
+        state = ver_status if ver_status else "?"
 
         rows.append((name, state, ver, method, tool_path))
 
@@ -216,6 +216,7 @@ def cmd_status(args: argparse.Namespace) -> None:
     if getattr(args, "compact", False):
         cmd_status_compact()
         return
+    ensure_versions_cache(TOOLS)
     print("AI Coding CLI Tools Status:")
     print("=" * 70)
     print()

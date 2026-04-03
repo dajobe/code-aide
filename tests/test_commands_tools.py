@@ -38,10 +38,11 @@ class TestCmdList(unittest.TestCase):
         self.assertIn("System Information:", output)
 
 
+@mock.patch.object(commands_tools, "ensure_versions_cache")
 class TestCmdStatus(unittest.TestCase):
     """Tests for cmd_status."""
 
-    def test_shows_upgradeable_count_for_outdated_tool(self):
+    def test_shows_upgradeable_count_for_outdated_tool(self, _mock_cache):
         tools = {
             "x": {
                 "name": "Example Tool",
@@ -87,7 +88,7 @@ class TestCmdStatus(unittest.TestCase):
         self.assertIn("tool(s) can be upgraded", output)
         self.assertIn(": x.", output)
 
-    def test_brew_current_upstream_lag_does_not_count_as_upgradeable(self):
+    def test_brew_current_upstream_lag_does_not_count_as_upgradeable(self, _mock_cache):
         tools = {
             "x": {
                 "name": "Example Tool",
@@ -143,7 +144,7 @@ class TestCmdStatus(unittest.TestCase):
         self.assertIn("upstream: 2.0.0", output)
         self.assertNotIn("tool(s) can be upgraded", output)
 
-    def test_installed_newer_than_catalog_shows_up_to_date(self):
+    def test_installed_newer_than_catalog_shows_up_to_date(self, _mock_cache):
         """When the binary is newer than latest_version, do not nag update-versions."""
         tools = {
             "x": {
@@ -190,7 +191,7 @@ class TestCmdStatus(unittest.TestCase):
         self.assertNotIn("Configured version outdated", output)
         self.assertNotIn("update-versions", output)
 
-    def test_status_shows_migration_warning(self):
+    def test_status_shows_migration_warning(self, _mock_cache):
         """cmd_status shows migration warning for deprecated install."""
         tools = {
             "x": {
@@ -237,7 +238,7 @@ class TestCmdStatus(unittest.TestCase):
         self.assertIn("configured method is script", output)
         self.assertIn("tool(s) need migration", output)
 
-    def test_compact_status_shows_ok_for_brew_tool_with_catalog_lag(self):
+    def test_compact_status_shows_ok_for_brew_tool_with_catalog_lag(self, _mock_cache):
         tools = {
             "x": {
                 "name": "Example Tool",
@@ -283,7 +284,7 @@ class TestCmdStatus(unittest.TestCase):
         self.assertIn("ok", output)
         self.assertNotIn("old", output)
 
-    def test_list_shows_migration_warning(self):
+    def test_list_shows_migration_warning(self, _mock_cache):
         """cmd_list shows migration warning for deprecated install."""
         tools = {
             "x": {

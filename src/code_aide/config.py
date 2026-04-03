@@ -8,6 +8,7 @@ bundled defaults with cached data.
 import importlib.resources
 import json
 import os
+import time
 
 from code_aide.install_types import InstallType, parse_install_type
 
@@ -61,6 +62,9 @@ def save_versions_cache(data: dict) -> None:
         json.dump(data, f, indent=2)
         f.write("\n")
 
+
+# Cache is considered stale after 24 hours.
+CACHE_MAX_AGE_SECONDS = 86400
 
 DYNAMIC_FIELDS = ["latest_version", "latest_date", "install_sha256"]
 
@@ -129,3 +133,60 @@ def save_updated_versions(tools: dict) -> None:
         if entry:
             cache_data["tools"][tool_key] = entry
     save_versions_cache(cache_data)
+
+
+def versions_cache_is_fresh() -> bool:
+    """Return True if the versions cache exists and is less than 24h old."""
+    cache_path = get_versions_cache_path()
+    try:
+        age = time.time() - os.path.getmtime(cache_path)
+        return age < CACHE_MAX_AGE_SECONDS
+    except OSError:
+        return False
+
+
+def refresh_versions_cache(tools: dict) -> None:
+    """Fetch latest versions from upstream and update tools dict in-place.
+
+    Called automatically by status commands when the cache is missing or
+    stale.  Only updates latest_version and latest_date (not install_sha256).
+    """
+    # Import here to avoid circular dependency (versions imports constants
+    # which imports config).
+    from code_aide.versions import (
+        check_npm_tool,
+        check_script_tool,
+        normalize_version,
+    )
+
+    for name, tool_config in tools.items():
+        install_type = parse_install_type(tool_config.get("install_type"))
+        try:
+            if install_type == InstallType.NPM:
+                result = check_npm_tool(name, tool_config)
+            elif install_type in (InstallType.SCRIPT, InstallType.DIRECT_DOWNLOAD):
+                if "install_url" not in tool_config:
+                    continue
+                result = check_script_tool(name, tool_config)
+            else:
+                continue
+        except Exception:
+            continue
+
+        if result["status"] == "error":
+            continue
+
+        version = result.get("version", "-")
+        if version and version != "-":
+            tool_config["latest_version"] = normalize_version(version)
+        date = result.get("date", "-")
+        if date and date != "-":
+            tool_config["latest_date"] = date
+
+    save_updated_versions(tools)
+
+
+def ensure_versions_cache(tools: dict) -> None:
+    """Refresh versions cache if missing or stale, updating tools in-place."""
+    if not versions_cache_is_fresh():
+        refresh_versions_cache(tools)
