@@ -43,6 +43,7 @@ def run_install_script(
     tool_name: str,
     expected_sha256: Optional[str] = None,
     dryrun: bool = False,
+    env: Optional[Dict[str, str]] = None,
 ) -> bool:
     """Download and run an installation script with SHA256 verification."""
     try:
@@ -82,6 +83,7 @@ def run_install_script(
             ["bash"],
             stdin=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            env=env,
         )
         _, stderr = bash_process.communicate(input=script_content)
 
@@ -97,6 +99,22 @@ def run_install_script(
     except Exception as exc:
         error(f"Failed to install {tool_name}: {exc}")
         return False
+
+
+def get_install_script_env(tool_config: Dict[str, Any]) -> Optional[Dict[str, str]]:
+    """Return environment overrides for running a tool's install script."""
+    path_prepend = tool_config.get("install_script_path_prepend", [])
+    if not path_prepend:
+        return None
+
+    env = os.environ.copy()
+    expanded_paths = [os.path.expanduser(path) for path in path_prepend]
+    current_path = env.get("PATH", "")
+    path_parts = [*expanded_paths]
+    if current_path:
+        path_parts.append(current_path)
+    env["PATH"] = os.pathsep.join(path_parts)
+    return env
 
 
 ARCH_MAP = {
@@ -327,7 +345,11 @@ def install_tool(tool_name: str, dryrun: bool = False, force: bool = False) -> b
             install_url = tool_config["install_url"]
             expected_sha256 = tool_config.get("install_sha256")
             if run_install_script(
-                install_url, tool_config["name"], expected_sha256, dryrun
+                install_url,
+                tool_config["name"],
+                expected_sha256,
+                dryrun,
+                env=get_install_script_env(tool_config),
             ):
                 if dryrun:
                     success(f"{tool_config['name']} verification passed")

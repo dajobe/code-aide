@@ -148,6 +148,67 @@ class TestExtractTarMember(unittest.TestCase):
             self.assertTrue(os.path.exists(extracted))
 
 
+class TestInstallScriptEnv(unittest.TestCase):
+    """Tests for install script environment handling."""
+
+    def test_no_env_without_path_prepend(self):
+        self.assertIsNone(cli_install.get_install_script_env({}))
+
+    def test_prepends_expanded_paths(self):
+        with tempfile.TemporaryDirectory() as td:
+            with mock.patch.dict(
+                os.environ,
+                {"HOME": td, "PATH": "/usr/bin"},
+                clear=True,
+            ):
+                env = cli_install.get_install_script_env(
+                    {"install_script_path_prepend": ["~/.local/bin"]}
+                )
+
+        self.assertIsNotNone(env)
+        self.assertEqual(
+            env["PATH"],
+            os.path.join(td, ".local", "bin") + os.pathsep + "/usr/bin",
+        )
+
+    def test_path_prepend_without_existing_path(self):
+        with tempfile.TemporaryDirectory() as td:
+            with mock.patch.dict(os.environ, {"HOME": td}, clear=True):
+                env = cli_install.get_install_script_env(
+                    {"install_script_path_prepend": ["~/.local/bin"]}
+                )
+
+        self.assertIsNotNone(env)
+        self.assertEqual(env["PATH"], os.path.join(td, ".local", "bin"))
+
+    @mock.patch.object(cli_install, "fetch_url")
+    @mock.patch.object(cli_install.subprocess, "Popen")
+    def test_run_install_script_passes_env_to_bash(self, mock_popen, mock_fetch):
+        script_content = b"#!/usr/bin/env bash\n"
+        expected_sha256 = cli_install.hashlib.sha256(script_content).hexdigest()
+        process = mock.Mock()
+        process.communicate.return_value = (b"", b"")
+        process.returncode = 0
+        mock_popen.return_value = process
+        mock_fetch.return_value = (script_content, None)
+        env = {"PATH": "/tmp/bin:/usr/bin"}
+
+        result = cli_install.run_install_script(
+            "https://example.com/install.sh",
+            "Example",
+            expected_sha256,
+            env=env,
+        )
+
+        self.assertTrue(result)
+        mock_popen.assert_called_once_with(
+            ["bash"],
+            stdin=cli_install.subprocess.PIPE,
+            stderr=cli_install.subprocess.PIPE,
+            env=env,
+        )
+
+
 class TestInstallDirectDownloadDryrun(unittest.TestCase):
     """Tests for install_direct_download in dryrun mode."""
 
@@ -270,3 +331,38 @@ class TestInstallTool(unittest.TestCase):
             "/usr/local/bin/test-tool"
         )
         mock_info.assert_any_call("[DRYRUN] Would install npm package: test-tool")
+
+    def test_script_install_passes_configured_env(self):
+        tool_config = {
+            "name": "Test Tool",
+            "command": "test-tool",
+            "install_type": "script",
+            "install_url": "https://example.com/install.sh",
+            "install_sha256": "abc123",
+            "install_script_path_prepend": ["~/.local/bin"],
+            "next_steps": "Run test-tool",
+        }
+        env = {"PATH": "/tmp/bin:/usr/bin"}
+
+        with (
+            mock.patch.dict(cli_install.TOOLS, {"test": tool_config}, clear=True),
+            mock.patch.object(cli_install, "command_exists", return_value=False),
+            mock.patch.object(cli_install.platform, "system", return_value="Darwin"),
+            mock.patch.object(
+                cli_install, "get_install_script_env", return_value=env
+            ) as mock_env,
+            mock.patch.object(
+                cli_install, "run_install_script", return_value=True
+            ) as mock_script,
+        ):
+            result = cli_install.install_tool("test")
+
+        self.assertTrue(result)
+        mock_env.assert_called_once_with(tool_config)
+        mock_script.assert_called_once_with(
+            "https://example.com/install.sh",
+            "Test Tool",
+            "abc123",
+            False,
+            env=env,
+        )

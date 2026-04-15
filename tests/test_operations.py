@@ -244,6 +244,65 @@ class TestMigrateInstallMethod(unittest.TestCase):
         mock_dd.assert_called_once_with("cursor", tool_config)
         mock_script.assert_not_called()
 
+    def test_upgrade_script_passes_configured_env(self):
+        """Script upgrades pass per-tool install environment overrides."""
+        tool_config = {
+            "name": "Amp (Sourcegraph)",
+            "command": "amp",
+            "install_type": "script",
+            "install_url": "https://ampcode.com/install.sh",
+            "install_sha256": "abc123",
+            "install_script_path_prepend": ["~/.local/bin"],
+        }
+        env = {"PATH": "/tmp/bin:/usr/bin"}
+        with (
+            mock.patch.dict(cli_operations.TOOLS, {"amp": tool_config}),
+            mock.patch.object(cli_operations, "is_tool_installed", return_value=True),
+            mock.patch.object(
+                cli_operations, "is_deprecated_install", return_value=False
+            ),
+            mock.patch.object(
+                cli_operations,
+                "detect_install_method",
+                side_effect=[
+                    {"method": "script", "detail": "native installer"},
+                    {"method": "script", "detail": "native installer"},
+                ],
+            ),
+            mock.patch.object(
+                cli_operations, "get_install_script_env", return_value=env
+            ) as mock_env,
+            mock.patch.object(
+                cli_operations, "run_install_script", return_value=True
+            ) as mock_script,
+            mock.patch.object(
+                cli_operations,
+                "_get_upgrade_snapshot",
+                side_effect=[
+                    {
+                        "method": "script",
+                        "detail": "native installer",
+                        "version": "1.0.0",
+                    },
+                    {
+                        "method": "script",
+                        "detail": "native installer",
+                        "version": "2.0.0",
+                    },
+                ],
+            ),
+        ):
+            result = cli_operations.upgrade_tool("amp")
+
+        self.assertEqual(result, UpgradeResult.CHANGED)
+        mock_env.assert_called_once_with(tool_config)
+        mock_script.assert_called_once_with(
+            "https://ampcode.com/install.sh",
+            "Amp (Sourcegraph)",
+            "abc123",
+            env=env,
+        )
+
     def test_migration_fails_on_remove(self):
         """Migration fails if remove_tool returns False."""
         tool_config = {

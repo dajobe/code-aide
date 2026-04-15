@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Amp CLI Binary Installation Script (EXPERIMENTAL - NOT DOCUMENTED)
-# This is a secondary install script for testing binary distribution
-# Downloads pre-compiled Amp CLI binary instead of using npm
-
 # Configuration
 AMP_HOME="${AMP_HOME:-$HOME/.amp}"
 BIN_DIR="$AMP_HOME/bin"
@@ -437,11 +433,8 @@ update_shell_profile() {
 			return
 		fi
 	else
-		# Non-interactive: show instructions instead
-		log "Non-interactive mode: skipping shell config modification."
-		log "To use amp, add ~/.local/bin to your PATH:"
-		echo "  $path_export"
-		return
+		# Non-interactive: add automatically
+		log "Adding ~/.local/bin to PATH in $tilde_profile..."
 	fi
 
 	# Create config file if it doesn't exist

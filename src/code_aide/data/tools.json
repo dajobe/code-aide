@@ -64,7 +64,10 @@
       "command": "amp",
       "install_type": "script",
       "install_url": "https://ampcode.com/install.sh",
-      "install_sha256": "a529b01e1e3653ad3e77cf8e5ec1f2cede5d65c880a62e783a3365bbd825be6d",
+      "install_sha256": "2442f20759a2be3beaef6691c7e5bf349f469eb0ff7ea2885746500243446e24",
+      "install_script_path_prepend": [
+        "~/.local/bin"
+      ],
       "version_url": "https://storage.googleapis.com/amp-public-assets-prod-0/cli/cli-version.txt",
       "prerequisites": [],
       "min_node_version": null,

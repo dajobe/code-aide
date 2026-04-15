@@ -16,6 +16,7 @@ from code_aide.detection import (
 )
 from code_aide.package_managers import query_package_owner
 from code_aide.install import (
+    get_install_script_env,
     install_direct_download,
     install_tool,
     run_install_script,
@@ -225,7 +226,10 @@ def upgrade_tool(tool_name: str) -> UpgradeResult:
                 install_url = tool_config["install_url"]
                 expected_sha256 = tool_config.get("install_sha256")
                 if run_install_script(
-                    install_url, tool_config["name"], expected_sha256
+                    install_url,
+                    tool_config["name"],
+                    expected_sha256,
+                    env=get_install_script_env(tool_config),
                 ):
                     pass
                 else:
