@@ -58,7 +58,7 @@ class TestCmdStatus(unittest.TestCase):
             "usage": None,
             "errors": [],
         }
-        args = type("Args", (), {})()
+        args = type("Args", (), {"long": True})()
         with (
             mock.patch.dict(commands_tools.TOOLS, tools, clear=True),
             mock.patch.object(
@@ -104,7 +104,7 @@ class TestCmdStatus(unittest.TestCase):
             "usage": None,
             "errors": [],
         }
-        args = type("Args", (), {})()
+        args = type("Args", (), {"long": True})()
         with (
             mock.patch.dict(commands_tools.TOOLS, tools, clear=True),
             mock.patch.object(
@@ -161,7 +161,7 @@ class TestCmdStatus(unittest.TestCase):
             "usage": None,
             "errors": [],
         }
-        args = type("Args", (), {})()
+        args = type("Args", (), {"long": True})()
         with (
             mock.patch.dict(commands_tools.TOOLS, tools, clear=True),
             mock.patch.object(
@@ -208,7 +208,7 @@ class TestCmdStatus(unittest.TestCase):
             "usage": None,
             "errors": [],
         }
-        args = type("Args", (), {})()
+        args = type("Args", (), {"long": True})()
         with (
             mock.patch.dict(commands_tools.TOOLS, tools, clear=True),
             mock.patch.object(
@@ -254,7 +254,7 @@ class TestCmdStatus(unittest.TestCase):
             "usage": None,
             "errors": [],
         }
-        args = type("Args", (), {"compact": True})()
+        args = type("Args", (), {})()
         with (
             mock.patch.dict(commands_tools.TOOLS, tools, clear=True),
             mock.patch.object(

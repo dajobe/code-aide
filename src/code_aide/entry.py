@@ -32,13 +32,13 @@ def main() -> None:
     list_parser.set_defaults(func=cmd_list)
 
     status_parser = subparsers.add_parser(
-        "status", help="Show detailed status for installed tools"
+        "status", help="Show tool status (compact by default)"
     )
     status_parser.add_argument(
-        "-c",
-        "--compact",
+        "-l",
+        "--long",
         action="store_true",
-        help="Show compact one-line-per-tool status",
+        help="Show detailed multi-line status",
     )
     status_parser.set_defaults(func=cmd_status)
 

@@ -25,11 +25,11 @@ pipx install code-aide
 # List available tools and their status
 code-aide list
 
-# Show detailed status for installed tools
+# Show compact one-line-per-tool status
 code-aide status
 
-# Show compact one-line-per-tool status
-code-aide status -c
+# Show detailed status for installed tools
+code-aide status -l
 
 # Install specific tools
 code-aide install claude gemini

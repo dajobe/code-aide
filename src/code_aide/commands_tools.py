@@ -214,7 +214,7 @@ def cmd_status_compact() -> None:
 
 def cmd_status(args: argparse.Namespace) -> None:
     """Handle status command."""
-    if getattr(args, "compact", False):
+    if not getattr(args, "long", False):
         cmd_status_compact()
         return
     ensure_versions_cache(TOOLS)
