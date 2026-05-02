@@ -240,17 +240,9 @@ install_amp_binary() {
 		log "Installing version: $version"
 	fi
 
-	# Use versioned URLs if available, fall back to root for backwards compatibility
 	local binary_url="$STORAGE_BASE/cli/${version}/amp-${platform}"
 	local checksum_url="$STORAGE_BASE/cli/${version}/${platform}-amp.sha256"
 	local minisign_signature_url="$binary_url.minisig"
-
-	# Check if versioned path exists, fall back to root path
-	if ! curl -fsSL --head "$checksum_url" >/dev/null 2>&1; then
-		binary_url="$STORAGE_BASE/cli/amp-${platform}"
-		checksum_url="$STORAGE_BASE/cli/${platform}-amp.sha256"
-		minisign_signature_url="$binary_url.minisig"
-	fi
 
 	# Add .exe for Windows downloads
 	if [[ "$platform" == *"windows"* ]]; then
