@@ -11,7 +11,7 @@ remove, status, and version metadata).
 | 2  | Read version from stdout+stderr        | Med      | Low     | Some tools write version to stderr; shown as not installed |
 | 3  | Atomic version cache writes            | Med-High | Low     | Process crash can corrupt `versions.json`                  |
 | 4  | Warn on invalid cache JSON             | Low      | Low     | Silent data loss; user sees empty versions                 |
-| 5  | Use `os.pathsep` not `":"`             | High     | Trivial | Breaks PATH checks on Windows entirely                     |
+| 5  | ~~Use `os.pathsep` not `":"`~~ (done)  | -        | -       | Fixed in `prereqs.py` `check_path_directories()`           |
 | 6  | Verify direct-download tarballs        | High     | Med     | No integrity check before extracting; MITM risk            |
 | 7  | Tarball checksum metadata fields       | High     | Low     | Prerequisite for item 6                                    |
 | 8  | `--json` output mode                   | Low      | Med     | Needed for CI/automation consumers                         |
@@ -36,7 +36,7 @@ remove, status, and version metadata).
   partial/corrupted `versions.json`.
 - [ ] Warn when `versions.json` cache contains invalid JSON instead of
   silently returning empty data.
-- [ ] Use `os.pathsep` instead of hardcoded `":"` in `prereqs.py`
+- [x] Use `os.pathsep` instead of hardcoded `":"` in `prereqs.py`
   `check_path_directories()`.
 
 ## Security and Integrity

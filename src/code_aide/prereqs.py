@@ -156,7 +156,7 @@ def check_path_directories(tools_installed: Optional[List[str]] = None) -> None:
     tools are checked.  Otherwise a small set of common directories is used.
     """
     current_path = os.environ.get("PATH", "")
-    path_entries = current_path.split(":")
+    path_entries = current_path.split(os.pathsep)
 
     if tools_installed:
         seen: set = set()
