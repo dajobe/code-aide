@@ -1,8 +1,6 @@
 """Upgrade and remove operations for managed tools."""
 
-import glob as globmod
 import os
-import shutil
 import subprocess
 import sys
 from enum import Enum
@@ -15,21 +13,15 @@ from code_aide.detection import (
     is_deprecated_install,
 )
 from code_aide.package_managers import query_package_owner
-from code_aide.install import (
-    get_install_script_env,
-    install_direct_download,
-    install_tool,
-    run_install_script,
-    run_pkg_command,
-)
+from code_aide.install import install_tool
 from code_aide.install_types import (
     InstallMethod,
-    InstallType,
     get_tool_install_type,
     install_method_from_type,
     parse_install_method,
 )
-from code_aide.console import error, info, run_command, success, warning
+from code_aide.operation_handlers import REMOVE_HANDLERS, UPGRADE_HANDLERS
+from code_aide.console import error, info, success, warning
 from code_aide.prereqs import is_tool_installed
 from code_aide.status import get_tool_status
 
@@ -202,71 +194,17 @@ def upgrade_tool(tool_name: str) -> UpgradeResult:
 
     info(f"Upgrading {tool_config['name']} (installed via {method})...")
 
+    handler = UPGRADE_HANDLERS.get(method) if method is not None else None
+    if handler is None:
+        error(
+            f"Don't know how to upgrade {tool_config['name']} "
+            f"(install method: {method})"
+        )
+        return UpgradeResult.FAILED
+
     try:
-        if method == InstallMethod.BREW_FORMULA:
-            run_command(["brew", "upgrade", detail], check=True, capture=False)
-
-        elif method == InstallMethod.BREW_CASK:
-            run_command(
-                ["brew", "upgrade", "--cask", detail], check=True, capture=False
-            )
-
-        elif method in (InstallMethod.NPM, InstallMethod.BREW_NPM):
-            npm_package = detail or tool_config.get("npm_package")
-            if not npm_package:
-                error(f"No npm package configured for {tool_config['name']}")
-                return UpgradeResult.FAILED
-            run_command(["npm", "install", "-g", f"{npm_package}@latest"], check=True)
-
-        elif method == InstallMethod.SCRIPT:
-            if get_tool_install_type(tool_config) == InstallType.DIRECT_DOWNLOAD:
-                if not install_direct_download(tool_name, tool_config):
-                    return UpgradeResult.FAILED
-            else:
-                install_url = tool_config["install_url"]
-                expected_sha256 = tool_config.get("install_sha256")
-                if run_install_script(
-                    install_url,
-                    tool_config["name"],
-                    expected_sha256,
-                    env=get_install_script_env(tool_config),
-                ):
-                    pass
-                else:
-                    return UpgradeResult.FAILED
-
-        elif method == InstallMethod.DIRECT_DOWNLOAD:
-            if not install_direct_download(tool_name, tool_config):
-                return UpgradeResult.FAILED
-
-        elif method == InstallMethod.PKG:
-            pkg_name = detail or tool_config.get("freebsd_port")
-            if not pkg_name:
-                error(f"No FreeBSD port configured for {tool_config['name']}")
-                return UpgradeResult.FAILED
-            pkg_repo = tool_config.get("freebsd_pkg_repo")
-            run_pkg_command(
-                ["sudo", "pkg", "install", "-y", "-f"],
-                pkg_name,
-                pkg_repo=pkg_repo,
-                check=True,
-                capture=False,
-            )
-
-        elif method == InstallMethod.SYSTEM:
-            error(
-                f"{tool_config['name']} is managed by the system package manager. "
-                "Use your package manager to upgrade it."
-            )
+        if not handler(tool_name, tool_config, detail):
             return UpgradeResult.FAILED
-
-        else:
-            error(
-                f"Don't know how to upgrade {tool_config['name']} "
-                f"(install method: {method})"
-            )
-            return UpgradeResult.FAILED
-
         after = _get_upgrade_snapshot(tool_name, tool_config)
         return _upgrade_result_from_snapshots(tool_config, before, after)
 
@@ -295,129 +233,16 @@ def remove_tool(tool_name: str) -> bool:
 
     info(f"Removing {tool_config['name']} (installed via {method})...")
 
+    handler = REMOVE_HANDLERS.get(method) if method is not None else None
+    if handler is None:
+        error(
+            f"Don't know how to remove {tool_config['name']} "
+            f"(install method: {method})"
+        )
+        return False
+
     try:
-        if method == InstallMethod.BREW_FORMULA:
-            run_command(["brew", "uninstall", detail], check=True, capture=False)
-            success(f"{tool_config['name']} removed successfully")
-
-        elif method == InstallMethod.BREW_CASK:
-            run_command(
-                ["brew", "uninstall", "--cask", detail], check=True, capture=False
-            )
-            success(f"{tool_config['name']} removed successfully")
-
-        elif method in (InstallMethod.NPM, InstallMethod.BREW_NPM):
-            npm_package = detail or tool_config.get("npm_package")
-            if not npm_package:
-                error(f"No npm package configured for {tool_config['name']}")
-                return False
-            run_command(["npm", "uninstall", "-g", npm_package], check=True)
-            success(f"{tool_config['name']} removed successfully")
-
-        elif method == InstallMethod.SCRIPT:
-            command = tool_config["command"]
-            command_path = shutil.which(command)
-
-            if command_path:
-                try:
-                    os.remove(command_path)
-                    success(f"{tool_config['name']} removed successfully")
-                except PermissionError:
-                    try:
-                        run_command(
-                            ["sudo", "rm", command_path], check=True, capture=False
-                        )
-                        success(f"{tool_config['name']} removed successfully")
-                    except subprocess.CalledProcessError as exc:
-                        error(
-                            f"Failed to remove {tool_config['name']}: {exc.stderr}. "
-                            f"Please remove manually: {command_path}"
-                        )
-                        return False
-                except Exception as exc:
-                    error(f"Failed to remove {tool_config['name']}: {exc}")
-                    return False
-            else:
-                warning(f"Could not find {command} binary to remove")
-                return True
-
-            if tool_name == "claude":
-                claude_data = os.path.expanduser("~/.local/share/claude")
-                if os.path.isdir(claude_data):
-                    shutil.rmtree(claude_data)
-                    info(f"Removed data directory: {claude_data}")
-
-        elif method == InstallMethod.DIRECT_DOWNLOAD:
-            bin_dir = os.path.expanduser(tool_config.get("bin_dir", "~/.local/bin"))
-            removed_links = set()
-            for link_name in tool_config.get("symlinks", {}):
-                link_path = os.path.join(bin_dir, link_name)
-                if os.path.lexists(link_path):
-                    os.remove(link_path)
-                    info(f"Removed symlink: {link_path}")
-                    removed_links.add(link_path)
-
-            command_path = shutil.which(tool_config["command"])
-            if (
-                command_path
-                and command_path not in removed_links
-                and os.path.lexists(command_path)
-            ):
-                os.remove(command_path)
-                info(f"Removed: {command_path}")
-
-            install_dir_template = tool_config.get("install_dir")
-            if install_dir_template:
-                if "{version}" in install_dir_template:
-                    install_pattern = os.path.expanduser(
-                        install_dir_template.replace("{version}", "*")
-                    )
-                    for install_path in sorted(globmod.glob(install_pattern)):
-                        if os.path.isdir(install_path):
-                            shutil.rmtree(install_path)
-                            info(f"Removed: {install_path}")
-                        elif os.path.lexists(install_path):
-                            os.remove(install_path)
-                            info(f"Removed: {install_path}")
-                else:
-                    install_path = os.path.expanduser(install_dir_template)
-                    if os.path.isdir(install_path):
-                        shutil.rmtree(install_path)
-                        info(f"Removed: {install_path}")
-                    elif os.path.lexists(install_path):
-                        os.remove(install_path)
-                        info(f"Removed: {install_path}")
-
-            success(f"{tool_config['name']} removed successfully")
-
-        elif method == InstallMethod.PKG:
-            pkg_name = detail or tool_config.get("freebsd_port")
-            if not pkg_name:
-                error(f"No FreeBSD port configured for {tool_config['name']}")
-                return False
-            run_command(
-                ["sudo", "pkg", "delete", "-y", pkg_name],
-                check=True,
-                capture=False,
-            )
-            success(f"{tool_config['name']} removed successfully")
-
-        elif method == InstallMethod.SYSTEM:
-            error(
-                f"{tool_config['name']} is managed by the system package manager. "
-                "Use your package manager to remove it."
-            )
-            return False
-
-        else:
-            error(
-                f"Don't know how to remove {tool_config['name']} "
-                f"(install method: {method})"
-            )
-            return False
-
-        return True
-
+        return handler(tool_name, tool_config, detail)
     except subprocess.CalledProcessError as exc:
         error(f"Failed to remove {tool_config['name']}: {exc.stderr}")
         return False
