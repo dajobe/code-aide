@@ -36,8 +36,14 @@ class TestConsoleExecution(unittest.TestCase):
     def test_command_exists_false(self, _mock_which):
         self.assertFalse(console.command_exists("tool"))
 
-    def test_run_command_check_false_returns_exception(self):
+    def test_run_command_check_true_propagates(self):
         err = subprocess.CalledProcessError(1, ["cmd"], output="o", stderr="e")
         with mock.patch.object(console.subprocess, "run", side_effect=err):
-            result = console.run_command(["cmd"], check=False)
-        self.assertIs(result, err)
+            with self.assertRaises(subprocess.CalledProcessError):
+                console.run_command(["cmd"], check=True)
+
+    def test_run_command_returns_completed_process(self):
+        completed = subprocess.CompletedProcess(["cmd"], 0, stdout="ok", stderr="")
+        with mock.patch.object(console.subprocess, "run", return_value=completed):
+            result = console.run_command(["cmd"], check=True)
+        self.assertIs(result, completed)

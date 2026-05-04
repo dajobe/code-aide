@@ -3,7 +3,8 @@
 import unittest
 from unittest import mock
 
-from code_aide import detection as cli_detection
+from code_aide import constants, detection as cli_detection
+from code_aide import package_info as cli_pkg_info
 
 
 class TestFormatInstallMethod(unittest.TestCase):
@@ -159,7 +160,7 @@ class TestPkgNeverDeprecated(unittest.TestCase):
             "install_type": "script",
         }
         with (
-            mock.patch.dict(cli_detection.TOOLS, {"test": tool_config}, clear=True),
+            mock.patch.dict(constants._TOOLS_DATA, {"test": tool_config}, clear=True),
             mock.patch.object(
                 cli_detection,
                 "detect_install_method",
@@ -172,15 +173,15 @@ class TestPkgNeverDeprecated(unittest.TestCase):
 class TestGetPkgPackageInfo(unittest.TestCase):
     """Tests for get_pkg_package_info."""
 
-    @mock.patch.object(cli_detection, "command_exists", return_value=False)
+    @mock.patch.object(cli_pkg_info, "command_exists", return_value=False)
     def test_no_pkg_command(self, mock_cmd):
         result = cli_detection.get_pkg_package_info("claude-code")
         self.assertEqual(result["package"], "claude-code")
         self.assertIsNone(result["installed_version"])
         self.assertIsNone(result["available_version"])
 
-    @mock.patch.object(cli_detection, "command_exists", return_value=True)
-    @mock.patch.object(cli_detection.subprocess, "run")
+    @mock.patch.object(cli_pkg_info, "command_exists", return_value=True)
+    @mock.patch.object(cli_pkg_info.subprocess, "run")
     def test_parses_pkg_output(self, mock_run, mock_cmd):
         def side_effect(cmd, **kwargs):
             result = mock.Mock()
@@ -202,8 +203,8 @@ class TestGetPkgPackageInfo(unittest.TestCase):
         self.assertEqual(result["available_version"], "2.1.63")
         self.assertTrue(result["outdated"])
 
-    @mock.patch.object(cli_detection, "command_exists", return_value=True)
-    @mock.patch.object(cli_detection.subprocess, "run")
+    @mock.patch.object(cli_pkg_info, "command_exists", return_value=True)
+    @mock.patch.object(cli_pkg_info.subprocess, "run")
     def test_up_to_date(self, mock_run, mock_cmd):
         def side_effect(cmd, **kwargs):
             result = mock.Mock()
@@ -218,8 +219,8 @@ class TestGetPkgPackageInfo(unittest.TestCase):
         self.assertEqual(result["available_version"], "2.1.63")
         self.assertFalse(result["outdated"])
 
-    @mock.patch.object(cli_detection, "command_exists", return_value=True)
-    @mock.patch.object(cli_detection.subprocess, "run")
+    @mock.patch.object(cli_pkg_info, "command_exists", return_value=True)
+    @mock.patch.object(cli_pkg_info.subprocess, "run")
     def test_repo_passes_r_flag_to_rquery(self, mock_run, mock_cmd):
         calls = []
 
@@ -290,7 +291,7 @@ class TestIsDeprecatedInstall(unittest.TestCase):
             "install_type": "script",
         }
         with (
-            mock.patch.dict(cli_detection.TOOLS, {"test": tool_config}, clear=True),
+            mock.patch.dict(constants._TOOLS_DATA, {"test": tool_config}, clear=True),
             mock.patch.object(
                 cli_detection,
                 "detect_install_method",
@@ -307,7 +308,7 @@ class TestIsDeprecatedInstall(unittest.TestCase):
             "install_type": "direct_download",
         }
         with (
-            mock.patch.dict(cli_detection.TOOLS, {"test": tool_config}, clear=True),
+            mock.patch.dict(constants._TOOLS_DATA, {"test": tool_config}, clear=True),
             mock.patch.object(
                 cli_detection,
                 "detect_install_method",
@@ -324,7 +325,7 @@ class TestIsDeprecatedInstall(unittest.TestCase):
             "install_type": "script",
         }
         with (
-            mock.patch.dict(cli_detection.TOOLS, {"test": tool_config}, clear=True),
+            mock.patch.dict(constants._TOOLS_DATA, {"test": tool_config}, clear=True),
             mock.patch.object(
                 cli_detection,
                 "detect_install_method",
@@ -341,7 +342,7 @@ class TestIsDeprecatedInstall(unittest.TestCase):
             "install_type": "npm",
         }
         with (
-            mock.patch.dict(cli_detection.TOOLS, {"test": tool_config}, clear=True),
+            mock.patch.dict(constants._TOOLS_DATA, {"test": tool_config}, clear=True),
             mock.patch.object(
                 cli_detection,
                 "detect_install_method",
@@ -358,7 +359,7 @@ class TestIsDeprecatedInstall(unittest.TestCase):
             "install_type": "script",
         }
         with (
-            mock.patch.dict(cli_detection.TOOLS, {"test": tool_config}, clear=True),
+            mock.patch.dict(constants._TOOLS_DATA, {"test": tool_config}, clear=True),
             mock.patch.object(
                 cli_detection,
                 "detect_install_method",
@@ -375,7 +376,7 @@ class TestIsDeprecatedInstall(unittest.TestCase):
             "install_type": "script",
         }
         with (
-            mock.patch.dict(cli_detection.TOOLS, {"test": tool_config}, clear=True),
+            mock.patch.dict(constants._TOOLS_DATA, {"test": tool_config}, clear=True),
             mock.patch.object(
                 cli_detection,
                 "detect_install_method",
@@ -392,7 +393,7 @@ class TestIsDeprecatedInstall(unittest.TestCase):
             "install_type": "script",
         }
         with (
-            mock.patch.dict(cli_detection.TOOLS, {"test": tool_config}, clear=True),
+            mock.patch.dict(constants._TOOLS_DATA, {"test": tool_config}, clear=True),
             mock.patch.object(
                 cli_detection,
                 "detect_install_method",
@@ -403,7 +404,7 @@ class TestIsDeprecatedInstall(unittest.TestCase):
 
     def test_unknown_tool_not_deprecated(self):
         """Unknown tool name -> not deprecated."""
-        with mock.patch.dict(cli_detection.TOOLS, {}, clear=True):
+        with mock.patch.dict(constants._TOOLS_DATA, {}, clear=True):
             self.assertFalse(cli_detection.is_deprecated_install("no-such-tool"))
 
 
@@ -418,7 +419,7 @@ class TestFormatMigrationWarning(unittest.TestCase):
             "install_type": "script",
         }
         with (
-            mock.patch.dict(cli_detection.TOOLS, {"test": tool_config}, clear=True),
+            mock.patch.dict(constants._TOOLS_DATA, {"test": tool_config}, clear=True),
             mock.patch.object(
                 cli_detection,
                 "detect_install_method",
@@ -439,7 +440,7 @@ class TestFormatMigrationWarning(unittest.TestCase):
             "install_type": "npm",
         }
         with (
-            mock.patch.dict(cli_detection.TOOLS, {"test": tool_config}, clear=True),
+            mock.patch.dict(constants._TOOLS_DATA, {"test": tool_config}, clear=True),
             mock.patch.object(
                 cli_detection,
                 "detect_install_method",

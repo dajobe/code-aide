@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from code_aide import install as cli_install
+from code_aide import constants, install as cli_install
 
 
 class TestDetectOsArch(unittest.TestCase):
@@ -75,7 +75,7 @@ class TestInstallToolFreeBSD(unittest.TestCase):
     @mock.patch.object(cli_install, "command_exists", return_value=False)
     def test_freebsd_no_port_returns_false(self, mock_cmd, mock_sys):
         tool_config = self._make_tool_config()
-        with mock.patch.dict(cli_install.TOOLS, {"test": tool_config}, clear=True):
+        with mock.patch.dict(constants._TOOLS_DATA, {"test": tool_config}, clear=True):
             result = cli_install.install_tool("test")
         self.assertFalse(result)
 
@@ -83,7 +83,7 @@ class TestInstallToolFreeBSD(unittest.TestCase):
     @mock.patch.object(cli_install, "command_exists", return_value=False)
     def test_freebsd_with_port_dryrun(self, mock_cmd, mock_sys):
         tool_config = self._make_tool_config(freebsd_port="test-tool-port")
-        with mock.patch.dict(cli_install.TOOLS, {"test": tool_config}, clear=True):
+        with mock.patch.dict(constants._TOOLS_DATA, {"test": tool_config}, clear=True):
             result = cli_install.install_tool("test", dryrun=True)
         self.assertTrue(result)
 
@@ -92,7 +92,7 @@ class TestInstallToolFreeBSD(unittest.TestCase):
     @mock.patch.object(cli_install, "run_command")
     def test_freebsd_with_port_installs_via_pkg(self, mock_run, mock_cmd, mock_sys):
         tool_config = self._make_tool_config(freebsd_port="test-tool-port")
-        with mock.patch.dict(cli_install.TOOLS, {"test": tool_config}, clear=True):
+        with mock.patch.dict(constants._TOOLS_DATA, {"test": tool_config}, clear=True):
             result = cli_install.install_tool("test")
         self.assertTrue(result)
         mock_run.assert_called_once_with(
@@ -107,7 +107,7 @@ class TestInstallToolFreeBSD(unittest.TestCase):
             freebsd_port="test-tool-port",
             freebsd_pkg_repo="FreeBSD-latest",
         )
-        with mock.patch.dict(cli_install.TOOLS, {"test": tool_config}, clear=True):
+        with mock.patch.dict(constants._TOOLS_DATA, {"test": tool_config}, clear=True):
             result = cli_install.install_tool("test")
         self.assertTrue(result)
         mock_run.assert_called_once_with(
@@ -289,7 +289,7 @@ class TestInstallTool(unittest.TestCase):
         }
 
         with (
-            mock.patch.dict(cli_install.TOOLS, {"test": tool_config}, clear=True),
+            mock.patch.dict(constants._TOOLS_DATA, {"test": tool_config}, clear=True),
             mock.patch.object(cli_install, "command_exists", return_value=True),
             mock.patch.object(
                 cli_install.shutil, "which", return_value="/usr/local/bin/test-tool"
@@ -313,7 +313,7 @@ class TestInstallTool(unittest.TestCase):
         }
 
         with (
-            mock.patch.dict(cli_install.TOOLS, {"test": tool_config}, clear=True),
+            mock.patch.dict(constants._TOOLS_DATA, {"test": tool_config}, clear=True),
             mock.patch.object(cli_install, "command_exists", return_value=True),
             mock.patch.object(
                 cli_install.shutil, "which", return_value="/usr/local/bin/test-tool"
@@ -345,7 +345,7 @@ class TestInstallTool(unittest.TestCase):
         env = {"PATH": "/tmp/bin:/usr/bin"}
 
         with (
-            mock.patch.dict(cli_install.TOOLS, {"test": tool_config}, clear=True),
+            mock.patch.dict(constants._TOOLS_DATA, {"test": tool_config}, clear=True),
             mock.patch.object(cli_install, "command_exists", return_value=False),
             mock.patch.object(cli_install.platform, "system", return_value="Darwin"),
             mock.patch.object(

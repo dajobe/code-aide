@@ -6,7 +6,7 @@ import sys
 import unittest
 from unittest import mock
 
-from code_aide import commands_actions
+from code_aide import constants, commands_actions
 from code_aide import entry
 from code_aide.operations import UpgradeResult
 
@@ -36,7 +36,7 @@ class TestCmdInstall(unittest.TestCase):
         )()
 
         with (
-            mock.patch.dict(commands_actions.TOOLS, tools, clear=True),
+            mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
             mock.patch.object(commands_actions, "validate_tools"),
             mock.patch.object(
                 commands_actions, "install_tool", return_value=True
@@ -153,7 +153,7 @@ class TestCmdUpgrade(unittest.TestCase):
         args = type("Args", (), {"tools": ["test"]})()
 
         with (
-            mock.patch.dict(commands_actions.TOOLS, tools, clear=True),
+            mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
             mock.patch.object(commands_actions, "validate_tools"),
             mock.patch.object(commands_actions, "is_tool_installed", return_value=True),
             mock.patch.object(
@@ -181,7 +181,7 @@ class TestCmdUpgrade(unittest.TestCase):
         args = type("Args", (), {"tools": []})()
 
         with (
-            mock.patch.dict(commands_actions.TOOLS, tools, clear=True),
+            mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
             mock.patch.object(commands_actions, "validate_tools"),
             mock.patch.object(commands_actions, "is_tool_installed", return_value=True),
             mock.patch(
@@ -220,7 +220,7 @@ class TestCmdUpgrade(unittest.TestCase):
         args = type("Args", (), {"tools": []})()
 
         with (
-            mock.patch.dict(commands_actions.TOOLS, tools, clear=True),
+            mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
             mock.patch.object(commands_actions, "validate_tools"),
             mock.patch.object(commands_actions, "is_tool_installed", return_value=True),
             mock.patch(
@@ -253,7 +253,7 @@ class TestCmdUpgrade(unittest.TestCase):
         args = type("Args", (), {"tools": []})()
 
         with (
-            mock.patch.dict(commands_actions.TOOLS, tools, clear=True),
+            mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
             mock.patch.object(commands_actions, "validate_tools"),
             mock.patch.object(commands_actions, "is_tool_installed", return_value=True),
             mock.patch(

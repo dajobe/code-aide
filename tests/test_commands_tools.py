@@ -5,7 +5,7 @@ import io
 import unittest
 from unittest import mock
 
-from code_aide import commands_tools
+from code_aide import constants, commands_tools
 
 
 class TestCmdList(unittest.TestCase):
@@ -22,7 +22,7 @@ class TestCmdList(unittest.TestCase):
         }
         args = type("Args", (), {})()
         with (
-            mock.patch.dict(commands_tools.TOOLS, tools, clear=True),
+            mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
             mock.patch.object(commands_tools, "is_tool_installed", return_value=False),
             mock.patch.object(commands_tools, "command_exists", return_value=False),
             mock.patch.object(
@@ -60,7 +60,7 @@ class TestCmdStatus(unittest.TestCase):
         }
         args = type("Args", (), {"long": True})()
         with (
-            mock.patch.dict(commands_tools.TOOLS, tools, clear=True),
+            mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
             mock.patch.object(
                 commands_tools.shutil, "which", return_value="/tmp/example"
             ),
@@ -106,7 +106,7 @@ class TestCmdStatus(unittest.TestCase):
         }
         args = type("Args", (), {"long": True})()
         with (
-            mock.patch.dict(commands_tools.TOOLS, tools, clear=True),
+            mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
             mock.patch.object(
                 commands_tools.shutil, "which", return_value="/opt/homebrew/bin/example"
             ),
@@ -163,7 +163,7 @@ class TestCmdStatus(unittest.TestCase):
         }
         args = type("Args", (), {"long": True})()
         with (
-            mock.patch.dict(commands_tools.TOOLS, tools, clear=True),
+            mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
             mock.patch.object(
                 commands_tools.shutil, "which", return_value="/tmp/example"
             ),
@@ -210,7 +210,7 @@ class TestCmdStatus(unittest.TestCase):
         }
         args = type("Args", (), {"long": True})()
         with (
-            mock.patch.dict(commands_tools.TOOLS, tools, clear=True),
+            mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
             mock.patch.object(
                 commands_tools.shutil, "which", return_value="/tmp/example"
             ),
@@ -256,7 +256,7 @@ class TestCmdStatus(unittest.TestCase):
         }
         args = type("Args", (), {})()
         with (
-            mock.patch.dict(commands_tools.TOOLS, tools, clear=True),
+            mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
             mock.patch.object(
                 commands_tools.shutil, "which", return_value="/opt/homebrew/bin/example"
             ),
@@ -296,7 +296,7 @@ class TestCmdStatus(unittest.TestCase):
         }
         args = type("Args", (), {})()
         with (
-            mock.patch.dict(commands_tools.TOOLS, tools, clear=True),
+            mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
             mock.patch.object(commands_tools, "is_tool_installed", return_value=True),
             mock.patch.object(
                 commands_tools.shutil, "which", return_value="/tmp/example"

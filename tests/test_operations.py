@@ -5,8 +5,9 @@ import tempfile
 import unittest
 from unittest import mock
 
-from code_aide import commands_actions as cli_commands_actions
+from code_aide import constants, commands_actions as cli_commands_actions
 from code_aide import operations as cli_operations
+from code_aide import operation_handlers as cli_handlers
 from code_aide.operations import UpgradeResult
 
 
@@ -46,7 +47,7 @@ class TestRemoveToolDirectDownload(unittest.TestCase):
             }
 
             with (
-                mock.patch.dict(cli_operations.TOOLS, {tool_name: tool_config}),
+                mock.patch.dict(constants._TOOLS_DATA, {tool_name: tool_config}),
                 mock.patch.object(
                     cli_operations, "is_tool_installed", return_value=True
                 ),
@@ -59,7 +60,7 @@ class TestRemoveToolDirectDownload(unittest.TestCase):
                     },
                 ),
                 mock.patch.object(
-                    cli_operations.shutil, "which", return_value=agent_link
+                    cli_handlers.shutil, "which", return_value=agent_link
                 ),
             ):
                 result = cli_operations.remove_tool(tool_name)
@@ -90,7 +91,7 @@ class TestRemoveToolScript(unittest.TestCase):
             }
 
             with (
-                mock.patch.dict(cli_operations.TOOLS, {tool_name: tool_config}),
+                mock.patch.dict(constants._TOOLS_DATA, {tool_name: tool_config}),
                 mock.patch.object(
                     cli_operations, "is_tool_installed", return_value=True
                 ),
@@ -103,7 +104,7 @@ class TestRemoveToolScript(unittest.TestCase):
                     },
                 ),
                 mock.patch.object(
-                    cli_operations.shutil, "which", return_value=binary_path
+                    cli_handlers.shutil, "which", return_value=binary_path
                 ),
             ):
                 result = cli_operations.remove_tool(tool_name)
@@ -124,7 +125,7 @@ class TestMigrateInstallMethod(unittest.TestCase):
             "install_url": "https://example.com/install.sh",
         }
         with (
-            mock.patch.dict(cli_operations.TOOLS, {"test": tool_config}),
+            mock.patch.dict(constants._TOOLS_DATA, {"test": tool_config}),
             mock.patch.object(cli_operations, "is_tool_installed", return_value=True),
             mock.patch.object(
                 cli_operations, "is_deprecated_install", return_value=True
@@ -159,7 +160,7 @@ class TestMigrateInstallMethod(unittest.TestCase):
             "install_sha256": "abc123",
         }
         with (
-            mock.patch.dict(cli_operations.TOOLS, {"test": tool_config}),
+            mock.patch.dict(constants._TOOLS_DATA, {"test": tool_config}),
             mock.patch.object(cli_operations, "is_tool_installed", return_value=True),
             mock.patch.object(
                 cli_operations, "is_deprecated_install", return_value=False
@@ -173,7 +174,7 @@ class TestMigrateInstallMethod(unittest.TestCase):
                 ],
             ),
             mock.patch.object(
-                cli_operations, "run_install_script", return_value=True
+                cli_handlers, "run_install_script", return_value=True
             ) as mock_script,
             mock.patch.object(
                 cli_operations,
@@ -211,7 +212,7 @@ class TestMigrateInstallMethod(unittest.TestCase):
             "install_sha256": "stale_checksum",
         }
         with (
-            mock.patch.dict(cli_operations.TOOLS, {"cursor": tool_config}),
+            mock.patch.dict(constants._TOOLS_DATA, {"cursor": tool_config}),
             mock.patch.object(cli_operations, "is_tool_installed", return_value=True),
             mock.patch.object(
                 cli_operations, "is_deprecated_install", return_value=False
@@ -225,10 +226,10 @@ class TestMigrateInstallMethod(unittest.TestCase):
                 ],
             ),
             mock.patch.object(
-                cli_operations, "install_direct_download", return_value=True
+                cli_handlers, "install_direct_download", return_value=True
             ) as mock_dd,
             mock.patch.object(
-                cli_operations, "run_install_script", return_value=False
+                cli_handlers, "run_install_script", return_value=False
             ) as mock_script,
             mock.patch.object(
                 cli_operations,
@@ -256,7 +257,7 @@ class TestMigrateInstallMethod(unittest.TestCase):
         }
         env = {"PATH": "/tmp/bin:/usr/bin"}
         with (
-            mock.patch.dict(cli_operations.TOOLS, {"amp": tool_config}),
+            mock.patch.dict(constants._TOOLS_DATA, {"amp": tool_config}),
             mock.patch.object(cli_operations, "is_tool_installed", return_value=True),
             mock.patch.object(
                 cli_operations, "is_deprecated_install", return_value=False
@@ -270,10 +271,10 @@ class TestMigrateInstallMethod(unittest.TestCase):
                 ],
             ),
             mock.patch.object(
-                cli_operations, "get_install_script_env", return_value=env
+                cli_handlers, "get_install_script_env", return_value=env
             ) as mock_env,
             mock.patch.object(
-                cli_operations, "run_install_script", return_value=True
+                cli_handlers, "run_install_script", return_value=True
             ) as mock_script,
             mock.patch.object(
                 cli_operations,
@@ -311,7 +312,7 @@ class TestMigrateInstallMethod(unittest.TestCase):
             "install_type": "script",
         }
         with (
-            mock.patch.dict(cli_operations.TOOLS, {"test": tool_config}),
+            mock.patch.dict(constants._TOOLS_DATA, {"test": tool_config}),
             mock.patch.object(cli_operations, "is_tool_installed", return_value=True),
             mock.patch.object(
                 cli_operations, "is_deprecated_install", return_value=True
@@ -338,7 +339,7 @@ class TestMigrateInstallMethod(unittest.TestCase):
             "install_type": "script",
         }
         with (
-            mock.patch.dict(cli_operations.TOOLS, {"test": tool_config}),
+            mock.patch.dict(constants._TOOLS_DATA, {"test": tool_config}),
             mock.patch.object(cli_operations, "is_tool_installed", return_value=True),
             mock.patch.object(
                 cli_operations, "is_deprecated_install", return_value=True
@@ -363,7 +364,7 @@ class TestMigrateInstallMethod(unittest.TestCase):
             "npm_package": "test-tool",
         }
         with (
-            mock.patch.dict(cli_operations.TOOLS, {"test": tool_config}),
+            mock.patch.dict(constants._TOOLS_DATA, {"test": tool_config}),
             mock.patch.object(cli_operations, "is_tool_installed", return_value=True),
             mock.patch.object(
                 cli_operations, "is_deprecated_install", return_value=False
@@ -373,7 +374,7 @@ class TestMigrateInstallMethod(unittest.TestCase):
                 "detect_install_method",
                 return_value={"method": "npm", "detail": "test-tool"},
             ),
-            mock.patch.object(cli_operations, "run_command") as mock_run,
+            mock.patch.object(cli_handlers, "run_command") as mock_run,
             mock.patch.object(
                 cli_operations,
                 "_get_upgrade_snapshot",
@@ -422,7 +423,7 @@ class TestCmdUpgradeDefaultSelection(unittest.TestCase):
         args = type("Args", (), {"tools": []})()
 
         with (
-            mock.patch.dict(cli_commands_actions.TOOLS, tools, clear=True),
+            mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
             mock.patch.object(
                 cli_commands_actions, "is_tool_installed", return_value=True
             ),
@@ -470,7 +471,7 @@ class TestCmdUpgradeDefaultSelection(unittest.TestCase):
         args = type("Args", (), {"tools": []})()
 
         with (
-            mock.patch.dict(cli_commands_actions.TOOLS, tools, clear=True),
+            mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
             mock.patch.object(
                 cli_commands_actions, "is_tool_installed", return_value=True
             ),
