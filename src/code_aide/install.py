@@ -15,6 +15,8 @@ from code_aide.console import command_exists, error, info, run_command, success,
 from code_aide.install_types import InstallType, get_tool_install_type
 from code_aide.versions import check_script_tool, fetch_url
 
+DOWNLOAD_TIMEOUT_SECONDS = 120
+
 
 def run_pkg_command(
     base_cmd: list,
@@ -199,7 +201,7 @@ def install_direct_download(
             return True
 
         info("Downloading package...")
-        tarball_data, _ = fetch_url(download_url, timeout=120)
+        tarball_data, _ = fetch_url(download_url, timeout=DOWNLOAD_TIMEOUT_SECONDS)
         success(f"Downloaded {len(tarball_data)} bytes")
 
         install_parent = os.path.dirname(install_dir) or "."

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import platform
 import shutil
 from typing import List
@@ -36,6 +37,8 @@ from code_aide.status import (
 from code_aide.versions import (
     extract_version_from_string,
 )
+
+_logger = logging.getLogger(__name__)
 
 
 def cmd_list(args: argparse.Namespace) -> None:
@@ -92,23 +95,21 @@ def cmd_list(args: argparse.Namespace) -> None:
     info("System Information:")
     print(f"  Platform: {platform.system()}")
 
+    from code_aide.console import run_command
+
     if command_exists("npm"):
         try:
-            from code_aide.console import run_command
-
             npm_version = run_command(["npm", "--version"]).stdout.strip()
             print(f"  npm:      {npm_version}")
         except Exception:
-            pass
+            _logger.debug("Failed to read npm --version", exc_info=True)
 
     if command_exists("node"):
         try:
-            from code_aide.console import run_command
-
             node_version = run_command(["node", "--version"]).stdout.strip()
             print(f"  Node.js:  {node_version}")
         except Exception:
-            pass
+            _logger.debug("Failed to read node --version", exc_info=True)
 
     pkg_mgr = _detect_package_manager()
     if pkg_mgr:

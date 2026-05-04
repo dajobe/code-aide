@@ -1,6 +1,7 @@
 """Argument parser and CLI entrypoint."""
 
 import argparse
+import logging
 
 from code_aide import __version__
 from code_aide.commands_actions import (
@@ -13,6 +14,21 @@ from code_aide.commands_tools import cmd_list, cmd_status
 from code_aide.constants import TOOLS
 
 
+def _configure_logging(debug: bool) -> None:
+    """Configure root logger.
+
+    With ``--debug`` we emit DEBUG-level messages to stderr; otherwise the
+    package logger stays at WARNING so ``_logger.debug`` calls in the codebase
+    are silent in normal operation.
+    """
+    level = logging.DEBUG if debug else logging.WARNING
+    logging.basicConfig(
+        level=level,
+        format="%(name)s: %(message)s",
+        force=True,
+    )
+
+
 def main() -> None:
     """Main function."""
     available_tools = ", ".join(TOOLS.keys())
@@ -22,6 +38,11 @@ def main() -> None:
     )
     parser.add_argument(
         "--version", action="version", version=f"%(prog)s {__version__}"
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug logging to stderr",
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Command to execute")
@@ -109,6 +130,7 @@ def main() -> None:
     update_versions_parser.set_defaults(func=cmd_update_versions)
 
     args = parser.parse_args()
+    _configure_logging(getattr(args, "debug", False))
     if not args.command:
         cmd_status(args)
     else:

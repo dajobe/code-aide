@@ -7,10 +7,14 @@ bundled defaults with cached data.
 
 import importlib.resources
 import json
+import logging
 import os
 import time
+from typing import Any, Dict, Mapping
 
 from code_aide.install_types import InstallType, parse_install_type
+
+_logger = logging.getLogger(__name__)
 
 
 def get_config_dir() -> str:
@@ -51,7 +55,9 @@ def load_versions_cache() -> dict:
             if isinstance(data, dict):
                 return data
         except (OSError, json.JSONDecodeError, ValueError):
-            pass
+            _logger.warning(
+                "Versions cache at %s could not be read; ignoring it", cache_path
+            )
     return {}
 
 
@@ -112,13 +118,13 @@ def load_tools_config() -> dict:
     return tools
 
 
-def save_updated_versions(tools: dict) -> None:
+def save_updated_versions(tools: Mapping[str, Dict[str, Any]]) -> None:
     """Save only dynamic version fields to the user's cache.
 
     Called by update-versions command. Only stores latest_version,
     latest_date, and install_sha256 per tool.
     """
-    cache_data = {"tools": {}}
+    cache_data: Dict[str, Dict[str, Dict[str, Any]]] = {"tools": {}}
     for tool_key, tool_data in tools.items():
         entry = {}
         for field in DYNAMIC_FIELDS:
@@ -135,7 +141,7 @@ def save_updated_versions(tools: dict) -> None:
     save_versions_cache(cache_data)
 
 
-def versions_cache_is_fresh(tools: dict) -> bool:
+def versions_cache_is_fresh(tools: Mapping[str, Dict[str, Any]]) -> bool:
     """Return True if the versions cache exists, is recent, and complete."""
     cache_path = get_versions_cache_path()
     try:
@@ -157,7 +163,7 @@ def versions_cache_is_fresh(tools: dict) -> bool:
     return True
 
 
-def refresh_versions_cache(tools: dict) -> None:
+def refresh_versions_cache(tools: Mapping[str, Dict[str, Any]]) -> None:
     """Fetch latest versions from upstream and update tools dict in-place.
 
     Called automatically by status commands when the cache is missing or
@@ -183,6 +189,9 @@ def refresh_versions_cache(tools: dict) -> None:
             else:
                 continue
         except Exception:
+            _logger.debug(
+                "Version refresh failed for %s; skipping", name, exc_info=True
+            )
             continue
 
         if result["status"] == "error":
@@ -198,7 +207,7 @@ def refresh_versions_cache(tools: dict) -> None:
     save_updated_versions(tools)
 
 
-def ensure_versions_cache(tools: dict) -> None:
+def ensure_versions_cache(tools: Mapping[str, Dict[str, Any]]) -> None:
     """Refresh versions cache if missing, stale, or incomplete."""
     if not versions_cache_is_fresh(tools):
         refresh_versions_cache(tools)
