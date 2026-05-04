@@ -35,10 +35,17 @@ def command_exists(command: str) -> bool:
 def run_command(
     cmd: List[str], check: bool = True, capture: bool = True
 ) -> subprocess.CompletedProcess:
-    """Run a command and return the result.
+    """Run a tool-mutating command with consistent hardening.
 
-    With ``check=True`` (default) this raises ``CalledProcessError`` on
-    non-zero exit, matching ``subprocess.run`` semantics.
+    Forces ``stdin=subprocess.DEVNULL`` so an interactive prompt (sudo
+    without cached creds, npm asking for telemetry consent, etc.) cannot
+    block the install on terminal input — the symptom would be a
+    silently hung process. Use this wrapper for install/upgrade/remove
+    commands; use ``subprocess.run`` directly for probing commands that
+    need ``timeout=`` or ``check=False``.
+
+    Defaults to capture+text mode. With ``check=True`` (default) a
+    non-zero exit raises ``CalledProcessError``.
     """
     if capture:
         return subprocess.run(
