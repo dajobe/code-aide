@@ -30,21 +30,21 @@ remove, status, and version metadata).
 
 - [ ] Handle missing `node` cleanly during prerequisite checks
   (`FileNotFoundError` path in Node version probing).
-- [ ] Read tool version output from both stdout and stderr so status does
-  not miss installed versions.
+- [ ] Read tool version output from both stdout and stderr so status does not
+  miss installed versions.
 - [ ] Make version cache writes atomic (write temp file + rename) to avoid
   partial/corrupted `versions.json`.
-- [ ] Warn when `versions.json` cache contains invalid JSON instead of
-  silently returning empty data.
+- [ ] Warn when `versions.json` cache contains invalid JSON instead of silently
+  returning empty data.
 - [x] Use `os.pathsep` instead of hardcoded `":"` in `prereqs.py`
   `check_path_directories()`.
 
 ## Security and Integrity
 
-- [ ] Add integrity verification for direct-download tarballs (not only
-  install script SHA256).
-- [ ] Extend tool metadata to support tarball checksum/signature fields
-  where applicable.
+- [ ] Add integrity verification for direct-download tarballs (not only install
+  script SHA256).
+- [ ] Extend tool metadata to support tarball checksum/signature fields where
+  applicable.
 
 ## CLI and Automation UX
 
@@ -52,21 +52,19 @@ remove, status, and version metadata).
 - [ ] Add a focused `doctor` command for environment checks (PATH,
   prerequisites, command health).
 - [ ] Consider `install --force` for reinstall/repair flows.
-- [ ] Add cleanup support for stale direct-download versions no longer in
-  use.
+- [ ] Add cleanup support for stale direct-download versions no longer in use.
 
 ## Documentation
 
-- [ ] Document that running `code-aide` with no subcommand defaults to
-  `status`.
+- [ ] Document that running `code-aide` with no subcommand defaults to `status`.
 - [ ] Add `install --dryrun` to the README usage examples.
 - [ ] Document environment variables and config file paths
   (`~/.config/code-aide/versions.json`).
 
 ## Platform and Package Detection
 
-- [ ] Broaden system package metadata detection beyond Gentoo-specific
-  tooling where practical.
+- [ ] Broaden system package metadata detection beyond Gentoo-specific tooling
+  where practical.
 
 ## Maintainability and Tests
 

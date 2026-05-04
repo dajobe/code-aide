@@ -102,7 +102,7 @@ def version_is_newer(version_a: str, version_b: str) -> bool:
 
     def parse_components(version: str) -> list:
         parts = re.split(r"[.\-]", version)
-        result = []
+        result: list = []
         for part in parts:
             try:
                 result.append((0, int(part)))
