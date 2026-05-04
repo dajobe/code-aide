@@ -1,8 +1,16 @@
-"""Shared constants and mutable tool configuration for CLI modules."""
+"""Shared constants and tool configuration for CLI modules.
+
+``TOOLS`` is exposed as a read-only :class:`types.MappingProxyType` view over
+``_TOOLS_DATA`` so production code cannot accidentally rebind tool entries.
+Tests that need a different fixture should patch ``_TOOLS_DATA`` directly via
+``mock.patch.dict`` — mutations to the underlying dict are visible through
+the proxy.
+"""
 
 import os
 import sys
-from typing import Any, Dict
+from types import MappingProxyType
+from typing import Any, Dict, Mapping
 
 from code_aide.config import load_tools_config
 
@@ -48,4 +56,5 @@ class Colors:
         NC = ""
 
 
-TOOLS: Dict[str, Dict[str, Any]] = load_tools_config()
+_TOOLS_DATA: Dict[str, Dict[str, Any]] = load_tools_config()
+TOOLS: Mapping[str, Dict[str, Any]] = MappingProxyType(_TOOLS_DATA)
