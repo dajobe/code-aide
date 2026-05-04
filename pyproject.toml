@@ -43,6 +43,21 @@ path = "src/code_aide/__init__.py"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning:_pytest.*",
+]
+markers = [
+    "network: tests that make real network calls (deselect with '-m \"not network\"')",
+]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["src/code_aide"]
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+no_implicit_optional = true
 
 [dependency-groups]
 dev = [
@@ -50,4 +65,5 @@ dev = [
     "pytest-xdist>=3.0",
     "black>=25.1.0",
     "ruff>=0.9.0",
+    "mypy>=1.10",
 ]
