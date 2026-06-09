@@ -107,6 +107,13 @@ mkdir -p "$DOWNLOAD_DIR"
 # Always download latest version (which has the most up-to-date installer)
 version=$(download_file "$DOWNLOAD_BASE_URL/latest")
 
+# Reject non-version content (e.g. an HTML error page) before it reaches the manifest URL
+if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+    echo "Failed to get a valid version from downloads.claude.ai (got unexpected content)." >&2
+    echo "This can happen if the download service is unreachable or not available in your region - see https://www.anthropic.com/supported-countries" >&2
+    exit 1
+fi
+
 # Download manifest and extract checksum
 manifest_json=$(download_file "$DOWNLOAD_BASE_URL/$version/manifest.json")
 
