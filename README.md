@@ -159,10 +159,11 @@ uv run pytest tests/test_install.py::TestDetectOsArch -v
    - Keep subjects user-facing so auto-generated release notes are meaningful.
    - Group related changes into focused commits instead of one broad commit.
    - Example: `Fixed timeout handling in status command`
-5. Tag and push:
+5. Tag and push to all remotes (origin/GitHub, gitlab, codeberg):
    - `git tag vX.Y.Z`
-   - `git push origin main`
-   - `git push origin vX.Y.Z`
+   - `git push origin main && git push origin vX.Y.Z`
+   - `git push gitlab main && git push gitlab vX.Y.Z`
+   - `git push codeberg main && git push codeberg vX.Y.Z`
 6. Confirm GitHub Actions:
    - CI should pass.
    - Publish workflow should upload to PyPI and create GitHub Release notes.

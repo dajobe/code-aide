@@ -36,3 +36,6 @@
 - When pushing tags, always push them explicitly with `git push <remote> <tag>`
   rather than relying on `--follow-tags`, which silently skips tags when the
   branch commits are already on the remote
+- For releases, push both the branch and the tag to all remotes (origin, gitlab,
+  codeberg): `git push <remote> main && git push <remote> <tag>` for each remote
+  in turn.
