@@ -5,6 +5,7 @@ import os
 import tarfile
 import tempfile
 import unittest
+import warnings
 from unittest import mock
 
 from code_aide import constants, install as cli_install
@@ -142,7 +143,13 @@ class TestExtractTarMember(unittest.TestCase):
                 with mock.patch.object(
                     tf, "extract", side_effect=_extract_with_legacy_signature
                 ):
-                    cli_install.extract_tar_member(tf, member, td)
+                    # The simulated legacy extract (no filter kwarg) emits a
+                    # DeprecationWarning on Python 3.12+. In production the
+                    # fallback only runs on Python too old to warn, so suppress
+                    # it here rather than letting filterwarnings=error fail.
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore", DeprecationWarning)
+                        cli_install.extract_tar_member(tf, member, td)
 
             extracted = os.path.join(td, "payload", "file.txt")
             self.assertTrue(os.path.exists(extracted))
