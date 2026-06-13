@@ -279,3 +279,28 @@ class TestExtractScriptDate(unittest.TestCase):
 
     def test_non_date_version_no_header_returns_none(self):
         self.assertIsNone(cli_versions.extract_script_date("v1.2.3", None))
+
+
+class TestExtractScriptVersion(unittest.TestCase):
+    """Tests for extract_script_version (cursor version parsing)."""
+
+    def test_cursor_legacy_date_hash_format(self):
+        script = b'DOWNLOAD_URL="https://downloads.cursor.com/lab/2026.03.20-44cb435/${OS}/${ARCH}/agent-cli-package.tar.gz"'
+        self.assertEqual(
+            cli_versions.extract_script_version("cursor", {}, script),
+            "2026.03.20-44cb435",
+        )
+
+    def test_cursor_date_time_hash_format(self):
+        # Cursor extended the version with a build time (HH-MM-SS). The whole
+        # string must be captured or the download URL path 403s.
+        script = b'DOWNLOAD_URL="https://downloads.cursor.com/lab/2026.06.12-19-59-36-f6aba9a/${OS}/${ARCH}/agent-cli-package.tar.gz"'
+        self.assertEqual(
+            cli_versions.extract_script_version("cursor", {}, script),
+            "2026.06.12-19-59-36-f6aba9a",
+        )
+
+    def test_cursor_no_version_returns_none(self):
+        self.assertIsNone(
+            cli_versions.extract_script_version("cursor", {}, b"echo hello")
+        )

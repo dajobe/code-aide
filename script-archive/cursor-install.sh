@@ -75,14 +75,14 @@ print_success "Detected ${OS}/${ARCH}"
 # Installation steps
 print_step "Creating installation directory..."
 # Create temporary directory for atomic download inside versions folder
-TEMP_EXTRACT_DIR="$HOME/.local/share/cursor-agent/versions/.tmp-2026.03.20-44cb435-$(date +%s)"
+TEMP_EXTRACT_DIR="$HOME/.local/share/cursor-agent/versions/.tmp-2026.06.12-19-59-36-f6aba9a-$(date +%s)"
 mkdir -p "${TEMP_EXTRACT_DIR}"
 
 print_success "Directory created"
 
 
 print_step "Downloading Cursor Agent package..."
-DOWNLOAD_URL="https://downloads.cursor.com/lab/2026.03.20-44cb435/${OS}/${ARCH}/agent-cli-package.tar.gz"
+DOWNLOAD_URL="https://downloads.cursor.com/lab/2026.06.12-19-59-36-f6aba9a/${OS}/${ARCH}/agent-cli-package.tar.gz"
 echo -e "${DIM}  Download URL: ${DOWNLOAD_URL}${NC}"
 
 # Cleanup function
@@ -107,7 +107,7 @@ fi
 
 print_step "Finalizing installation..."
 # Atomically move from temp to final destination
-FINAL_DIR="$HOME/.local/share/cursor-agent/versions/2026.03.20-44cb435"
+FINAL_DIR="$HOME/.local/share/cursor-agent/versions/2026.06.12-19-59-36-f6aba9a"
 command rm -rf "${FINAL_DIR}"
 if mv "${TEMP_EXTRACT_DIR}" "${FINAL_DIR}"; then
   print_success "Package installed successfully"
@@ -127,8 +127,8 @@ print_step "Creating symlinks to agent executable..."
 # Remove any existing symlink or file
 command rm -f ~/.local/bin/agent ~/.local/bin/cursor-agent
 # Create symlinks to the Cursor Agent executable (primary: agent, legacy: cursor-agent)
-ln -s ~/.local/share/cursor-agent/versions/2026.03.20-44cb435/cursor-agent ~/.local/bin/agent
-ln -s ~/.local/share/cursor-agent/versions/2026.03.20-44cb435/cursor-agent ~/.local/bin/cursor-agent
+ln -s ~/.local/share/cursor-agent/versions/2026.06.12-19-59-36-f6aba9a/cursor-agent ~/.local/bin/agent
+ln -s ~/.local/share/cursor-agent/versions/2026.06.12-19-59-36-f6aba9a/cursor-agent ~/.local/bin/cursor-agent
 print_success "Symlink created"
 
 # Success message

@@ -191,7 +191,12 @@ def extract_script_version(
     text = script_content.decode("utf-8", errors="replace")
 
     if tool_name == "cursor":
-        match = re.search(r"(\d{4}\.\d{2}\.\d{2}-[0-9a-f]+)", text)
+        # Cursor versions are date-stamped with one or more hyphen-separated
+        # segments: historically YYYY.MM.DD-<githash>, now extended with a
+        # build time, e.g. 2026.06.12-19-59-36-f6aba9a. Capture every segment
+        # so the download URL path matches; stopping at the first segment
+        # yields a nonexistent build (HTTP 403).
+        match = re.search(r"(\d{4}\.\d{2}\.\d{2}(?:-[0-9a-f]+)+)", text)
         if match:
             return match.group(1)
 
