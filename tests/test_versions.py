@@ -304,3 +304,22 @@ class TestExtractScriptVersion(unittest.TestCase):
         self.assertIsNone(
             cli_versions.extract_script_version("cursor", {}, b"echo hello")
         )
+
+    def test_skips_shell_variable_placeholder(self):
+        # The amp script declares AMP_VERSION="${AMP_VERSION:-}"; the literal
+        # placeholder must not be returned as a version.
+        script = b'AMP_VERSION="${AMP_VERSION:-}"\n'
+        self.assertIsNone(cli_versions.extract_script_version("amp", {}, script))
+
+    def test_returns_real_version_after_placeholder(self):
+        script = b'AMP_VERSION="${AMP_VERSION:-}"\nVERSION="1.2.3"\n'
+        self.assertEqual(
+            cli_versions.extract_script_version("amp", {}, script),
+            "1.2.3",
+        )
+
+    def test_plain_version_assignment(self):
+        self.assertEqual(
+            cli_versions.extract_script_version("amp", {}, b'VERSION="2.0.1"\n'),
+            "2.0.1",
+        )

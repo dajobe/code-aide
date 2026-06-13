@@ -1,3 +1,3 @@
 """code-aide - Manage AI coding CLI tools."""
 
-__version__ = "1.15.3"
+__version__ = "1.15.4"

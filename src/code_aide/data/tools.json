@@ -68,7 +68,7 @@
       "install_script_path_prepend": [
         "~/.local/bin"
       ],
-      "version_url": "https://storage.googleapis.com/amp-public-assets-prod-0/cli/cli-version.txt",
+      "version_url": "https://static.ampcode.com/cli/cli-version.txt",
       "prerequisites": [],
       "min_node_version": null,
       "next_steps": "Run 'amp login' to authenticate",

@@ -205,9 +205,14 @@ def extract_script_version(
         r"VERSION='([^']+)'",
         r"VERSION=(\S+)",
     ]:
-        match = re.search(pattern, text)
-        if match:
-            return match.group(1)
+        for match in re.finditer(pattern, text):
+            candidate = match.group(1)
+            # Skip shell-variable placeholders such as the literal
+            # ${AMP_VERSION:-} in `AMP_VERSION="${AMP_VERSION:-}"`; a real
+            # version string never contains shell expansion characters.
+            if "$" in candidate or "{" in candidate:
+                continue
+            return candidate
 
     return None
 
