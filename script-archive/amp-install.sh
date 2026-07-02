@@ -4,7 +4,7 @@ set -euo pipefail
 # Configuration
 AMP_HOME="${AMP_HOME:-$HOME/.amp}"
 BIN_DIR="$AMP_HOME/bin"
-STORAGE_BASE="https://static.ampcode.com"
+AMP_STORAGE_BASE="${AMP_STORAGE_BASE:-https://static.ampcode.com}"
 AMP_URL="${AMP_URL:-https://ampcode.com}"
 AMP_VERSION="${AMP_VERSION:-}"
 
@@ -19,6 +19,7 @@ NC='\033[0m' # No Color
 cleanup() {
 	echo -e "\n${YELLOW}Installation interrupted...${NC}"
 	rm -f "$AMP_HOME/amp-install-"* 2>/dev/null || true
+	rm -f "$BIN_DIR/tmp."* 2>/dev/null || true
 	exit 1
 }
 
@@ -166,6 +167,32 @@ download_file() {
 	mv "$temp_file" "$output_file"
 }
 
+# Download gzip-compressed file and write decompressed contents atomically
+download_gzipped_file() {
+	local url="$1"
+	local output_file="$2"
+
+	log "Downloading $(basename "$output_file").gz..."
+
+	local temp_gz_file
+	temp_gz_file=$(mktemp "$(dirname "$output_file")/tmp.XXXXXX.gz")
+	local temp_output_file
+	temp_output_file=$(mktemp "$(dirname "$output_file")/tmp.XXXXXX")
+
+	downloader "$url" "$temp_gz_file"
+	if command_exists gzip; then
+		gzip -dc "$temp_gz_file" > "$temp_output_file"
+	else
+		gunzip -c "$temp_gz_file" > "$temp_output_file"
+	fi
+	mv "$temp_output_file" "$output_file"
+	rm -f "$temp_gz_file"
+}
+
+has_gzip_support() {
+	command_exists gzip || command_exists gunzip
+}
+
 # Verify SHA256 checksum
 verify_checksum() {
 	local file="$1"
@@ -210,7 +237,7 @@ verify_signature() {
 
 # Fetch latest CLI version
 fetch_latest_version() {
-	local version_url="$STORAGE_BASE/cli/cli-version.txt"
+	local version_url="$AMP_STORAGE_BASE/cli/cli-version.txt"
 	local version_path="$AMP_HOME/amp-install-version.txt"
 
 	download_file "$version_url" "$version_path"
@@ -240,8 +267,8 @@ install_amp_binary() {
 		log "Installing version: $version"
 	fi
 
-	local binary_url="$STORAGE_BASE/cli/${version}/amp-${platform}"
-	local checksum_url="$STORAGE_BASE/cli/${version}/${platform}-amp.sha256"
+	local binary_url="$AMP_STORAGE_BASE/cli/${version}/amp-${platform}"
+	local checksum_url="$AMP_STORAGE_BASE/cli/${version}/${platform}-amp.sha256"
 	local minisign_signature_url="$binary_url.minisig"
 
 	# Add .exe for Windows downloads
@@ -257,8 +284,13 @@ install_amp_binary() {
 	local expected_checksum
 	expected_checksum=$(cat "$checksum_path")
 
-	# Download binary
-	download_file "$binary_url" "$binary_path"
+	if has_gzip_support; then
+		# Download compressed binary and verify the decompressed bytes against checksum
+		download_gzipped_file "${binary_url}.gz" "$binary_path"
+	else
+		warn "gzip not found; downloading uncompressed binary"
+		download_file "$binary_url" "$binary_path"
+	fi
 
 	# Verify checksum
 	verify_checksum "$binary_path" "$expected_checksum"
