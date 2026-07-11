@@ -73,6 +73,7 @@ def cmd_install(args: argparse.Namespace) -> None:
         )
 
     installed = []
+    installed_bin_dirs = []
     failed = []
 
     for tool in tools_to_install:
@@ -82,8 +83,10 @@ def cmd_install(args: argparse.Namespace) -> None:
         else:
             info(f"=== Installing {tool} ===")
 
-        if install_tool(tool, dryrun=dryrun):
+        outcome = install_tool(tool, dryrun=dryrun)
+        if outcome:
             installed.append(tool)
+            installed_bin_dirs.extend(outcome.bin_dirs)
         else:
             failed.append(tool)
 
@@ -120,7 +123,7 @@ def cmd_install(args: argparse.Namespace) -> None:
                 print(f"  {tool_config['next_steps']}")
 
         print()
-        check_path_directories(installed)
+        check_path_directories(installed_bin_dirs)
         success("All installations completed successfully!")
 
 

@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
+from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 from code_aide.constants import TOOLS
@@ -16,6 +17,29 @@ from code_aide.install_types import InstallType, get_tool_install_type
 from code_aide.versions import check_script_tool, fetch_url
 
 DOWNLOAD_TIMEOUT_SECONDS = 120
+
+
+@dataclass(frozen=True)
+class InstallOutcome:
+    """Result of an install, including directories that may need PATH setup."""
+
+    succeeded: bool
+    bin_dirs: tuple[str, ...] = ()
+
+    def __bool__(self) -> bool:
+        return self.succeeded
+
+
+def get_npm_global_bin_dir() -> Optional[str]:
+    """Return the directory where the active npm installs global executables."""
+    try:
+        prefix = run_command(["npm", "prefix", "--global"]).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+
+    if not prefix:
+        return None
+    return os.path.join(prefix, "bin")
 
 
 def run_pkg_command(
@@ -265,12 +289,14 @@ def install_direct_download(
         return False
 
 
-def install_tool(tool_name: str, dryrun: bool = False, force: bool = False) -> bool:
+def install_tool(
+    tool_name: str, dryrun: bool = False, force: bool = False
+) -> InstallOutcome:
     """Install a tool based on its configuration."""
     tool_config = TOOLS.get(tool_name)
     if not tool_config:
         error(f"Unknown tool: {tool_name}")
-        return False
+        return InstallOutcome(False)
 
     if dryrun:
         info(f"[DRYRUN] Checking {tool_config['name']}...")
@@ -283,7 +309,7 @@ def install_tool(tool_name: str, dryrun: bool = False, force: bool = False) -> b
             info(f"{tool_config['command']} already installed at {tool_path}")
         else:
             warning(f"{tool_config['command']} already installed at {tool_path}")
-        return True
+        return InstallOutcome(True)
     if command_exists(tool_config["command"]) and force:
         tool_path = shutil.which(tool_config["command"])
         if dryrun:
@@ -301,7 +327,7 @@ def install_tool(tool_name: str, dryrun: bool = False, force: bool = False) -> b
         freebsd_port = tool_config.get("freebsd_port")
         if not freebsd_port:
             error(f"{tool_config['name']} is not available on FreeBSD (no port exists)")
-            return False
+            return InstallOutcome(False)
         pkg_repo = tool_config.get("freebsd_pkg_repo")
         if dryrun:
             repo_flag = f" -r {pkg_repo}" if pkg_repo else ""
@@ -309,7 +335,7 @@ def install_tool(tool_name: str, dryrun: bool = False, force: bool = False) -> b
                 f"[DRYRUN] Would install FreeBSD port: "
                 f"pkg install{repo_flag} {freebsd_port}"
             )
-            return True
+            return InstallOutcome(True)
         try:
             run_pkg_command(
                 ["sudo", "pkg", "install", "-y"],
@@ -321,27 +347,32 @@ def install_tool(tool_name: str, dryrun: bool = False, force: bool = False) -> b
             info(tool_config["next_steps"])
             if "docs_url" in tool_config:
                 info(f"Documentation: {tool_config['docs_url']}")
-            return True
+            return InstallOutcome(True)
         except subprocess.CalledProcessError as exc:
             error(f"Failed to install {tool_config['name']}: {exc.stderr}")
-            return False
+            return InstallOutcome(False)
         except Exception as exc:
             error(f"Failed to install {tool_config['name']}: {exc}")
-            return False
+            return InstallOutcome(False)
 
     try:
         install_type = get_tool_install_type(tool_config)
 
         if install_type == InstallType.NPM:
             npm_package = tool_config["npm_package"]
+            bin_dirs = ()
             if dryrun:
                 info(f"[DRYRUN] Would install npm package: {npm_package}")
             else:
                 run_command(["npm", "install", "-g", npm_package], check=True)
+                npm_bin_dir = get_npm_global_bin_dir()
+                if npm_bin_dir:
+                    bin_dirs = (npm_bin_dir,)
                 success(f"{tool_config['name']} installed successfully")
                 info(tool_config["next_steps"])
                 if "docs_url" in tool_config:
                     info(f"Documentation: {tool_config['docs_url']}")
+            return InstallOutcome(True, bin_dirs)
 
         elif install_type == InstallType.SCRIPT:
             install_url = tool_config["install_url"]
@@ -361,7 +392,7 @@ def install_tool(tool_name: str, dryrun: bool = False, force: bool = False) -> b
                     if "docs_url" in tool_config:
                         info(f"Documentation: {tool_config['docs_url']}")
             else:
-                return False
+                return InstallOutcome(False)
 
         elif install_type == InstallType.DIRECT_DOWNLOAD:
             if install_direct_download(tool_name, tool_config, dryrun):
@@ -373,13 +404,18 @@ def install_tool(tool_name: str, dryrun: bool = False, force: bool = False) -> b
                     if "docs_url" in tool_config:
                         info(f"Documentation: {tool_config['docs_url']}")
             else:
-                return False
+                return InstallOutcome(False)
 
-        return True
+            if not dryrun and tool_config.get("bin_dir"):
+                return InstallOutcome(
+                    True, (os.path.expanduser(tool_config["bin_dir"]),)
+                )
+
+        return InstallOutcome(True)
 
     except subprocess.CalledProcessError as exc:
         error(f"Failed to install {tool_config['name']}: {exc.stderr}")
-        return False
+        return InstallOutcome(False)
     except Exception as exc:
         error(f"Failed to install {tool_config['name']}: {exc}")
-        return False
+        return InstallOutcome(False)

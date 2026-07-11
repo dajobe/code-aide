@@ -8,6 +8,7 @@ from unittest import mock
 
 from code_aide import constants, commands_actions
 from code_aide import entry
+from code_aide.install import InstallOutcome
 from code_aide.operations import UpgradeResult
 
 
@@ -39,7 +40,7 @@ class TestCmdInstall(unittest.TestCase):
             mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
             mock.patch.object(commands_actions, "validate_tools"),
             mock.patch.object(
-                commands_actions, "install_tool", return_value=True
+                commands_actions, "install_tool", return_value=InstallOutcome(True)
             ) as mock_install_tool,
             mock.patch.object(commands_actions, "check_prerequisites") as mock_prereqs,
         ):
@@ -49,6 +50,38 @@ class TestCmdInstall(unittest.TestCase):
 
         mock_install_tool.assert_called_once_with("default_tool", dryrun=True)
         mock_prereqs.assert_not_called()
+
+    def test_checks_bin_directories_reported_by_installers(self):
+        tools = {
+            "test": {
+                "name": "Test Tool",
+                "command": "test",
+                "install_type": "npm",
+                "next_steps": "run test",
+            }
+        }
+        args = type(
+            "Args",
+            (),
+            {"tools": ["test"], "dryrun": False, "install_prerequisites": False},
+        )()
+
+        with (
+            mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
+            mock.patch.object(commands_actions, "validate_tools"),
+            mock.patch.object(commands_actions, "check_prerequisites"),
+            mock.patch.object(
+                commands_actions,
+                "install_tool",
+                return_value=InstallOutcome(True, ("/home/test/.npm-packages/bin",)),
+            ),
+            mock.patch.object(
+                commands_actions, "check_path_directories"
+            ) as mock_check_path,
+        ):
+            commands_actions.cmd_install(args)
+
+        mock_check_path.assert_called_once_with(["/home/test/.npm-packages/bin"])
 
 
 class TestCmdUpdateVersions(unittest.TestCase):

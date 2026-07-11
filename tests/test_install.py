@@ -286,6 +286,16 @@ class TestInstallDirectDownload(unittest.TestCase):
 class TestInstallTool(unittest.TestCase):
     """Tests for install_tool behavior."""
 
+    def test_get_npm_global_bin_dir_uses_active_prefix(self):
+        npm_prefix = mock.Mock(stdout="/home/test/.npm-packages\n")
+        with mock.patch.object(
+            cli_install, "run_command", return_value=npm_prefix
+        ) as mock_run:
+            result = cli_install.get_npm_global_bin_dir()
+
+        self.assertEqual(result, "/home/test/.npm-packages/bin")
+        mock_run.assert_called_once_with(["npm", "prefix", "--global"])
+
     def test_force_reinstalls_even_when_binary_exists(self):
         tool_config = {
             "name": "Test Tool",
@@ -301,11 +311,17 @@ class TestInstallTool(unittest.TestCase):
             mock.patch.object(
                 cli_install.shutil, "which", return_value="/usr/local/bin/test-tool"
             ),
+            mock.patch.object(
+                cli_install,
+                "get_npm_global_bin_dir",
+                return_value="/home/test/.npm-packages/bin",
+            ),
             mock.patch.object(cli_install, "run_command") as mock_run,
         ):
             result = cli_install.install_tool("test", force=True)
 
         self.assertTrue(result)
+        self.assertEqual(result.bin_dirs, ("/home/test/.npm-packages/bin",))
         mock_run.assert_called_once_with(
             ["npm", "install", "-g", "test-tool"], check=True
         )

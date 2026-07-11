@@ -210,14 +210,12 @@ class TestCheckPathDirectories(unittest.TestCase):
     """Tests for check_path_directories."""
 
     def test_warns_when_existing_bin_dir_not_in_path(self):
-        tool_config = {"name": "Test", "command": "test", "bin_dir": "/custom/bin"}
         with (
-            mock.patch.dict(constants._TOOLS_DATA, {"test": tool_config}, clear=True),
             mock.patch.dict("os.environ", {"PATH": "/usr/bin"}, clear=False),
             mock.patch.object(cli_prereqs.os.path, "isdir", return_value=True),
             mock.patch("builtins.print") as mock_print,
         ):
-            cli_prereqs.check_path_directories(["test"])
+            cli_prereqs.check_path_directories(["/custom/bin"])
         # Should have printed at least the bin dir as a warning detail
         printed = " ".join(
             str(call.args[0]) for call in mock_print.call_args_list if call.args
@@ -225,27 +223,23 @@ class TestCheckPathDirectories(unittest.TestCase):
         self.assertIn("/custom/bin", printed)
 
     def test_silent_when_dir_already_in_path(self):
-        tool_config = {"name": "Test", "command": "test", "bin_dir": "/custom/bin"}
         with (
-            mock.patch.dict(constants._TOOLS_DATA, {"test": tool_config}, clear=True),
             mock.patch.dict(
                 "os.environ", {"PATH": "/custom/bin:/usr/bin"}, clear=False
             ),
             mock.patch.object(cli_prereqs.os.path, "isdir", return_value=True),
             mock.patch("builtins.print") as mock_print,
         ):
-            cli_prereqs.check_path_directories(["test"])
+            cli_prereqs.check_path_directories(["/custom/bin"])
         self.assertFalse(mock_print.called)
 
     def test_silent_when_bin_dir_does_not_exist(self):
-        tool_config = {"name": "Test", "command": "test", "bin_dir": "/missing/bin"}
         with (
-            mock.patch.dict(constants._TOOLS_DATA, {"test": tool_config}, clear=True),
             mock.patch.dict("os.environ", {"PATH": "/usr/bin"}, clear=False),
             mock.patch.object(cli_prereqs.os.path, "isdir", return_value=False),
             mock.patch("builtins.print") as mock_print,
         ):
-            cli_prereqs.check_path_directories(["test"])
+            cli_prereqs.check_path_directories(["/missing/bin"])
         self.assertFalse(mock_print.called)
 
 
