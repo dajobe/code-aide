@@ -8,39 +8,107 @@ AMP_STORAGE_BASE="${AMP_STORAGE_BASE:-https://static.ampcode.com}"
 AMP_URL="${AMP_URL:-https://ampcode.com}"
 AMP_VERSION="${AMP_VERSION:-}"
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+if [[ -t 2 ]]; then
+	TTY_OUTPUT=1
+else
+	TTY_OUTPUT=0
+fi
+
+if [[ $TTY_OUTPUT -eq 1 && -z "${NO_COLOR:-}" ]] && command -v tput >/dev/null 2>&1; then
+	COLOR_COUNT="$(tput colors 2>/dev/null || printf '0')"
+else
+	COLOR_COUNT=0
+fi
+
+if [[ "$COLOR_COUNT" =~ ^[0-9]+$ && "$COLOR_COUNT" -ge 8 ]]; then
+	BOLD="$(tput bold 2>/dev/null || true)"
+	DIM="$(tput dim 2>/dev/null || true)"
+	RESET="$(tput sgr0 2>/dev/null || true)"
+	ACCENT="$(tput setaf 6 2>/dev/null || true)"
+	SUCCESS="$(tput setaf 2 2>/dev/null || true)"
+	WARNING="$(tput setaf 3 2>/dev/null || true)"
+	ERROR="$(tput setaf 1 2>/dev/null || true)"
+else
+	BOLD=''
+	DIM=''
+	RESET=''
+	ACCENT=''
+	SUCCESS=''
+	WARNING=''
+	ERROR=''
+fi
+
+case ":$TTY_OUTPUT:${LC_ALL:-${LC_CTYPE:-${LANG:-}}}" in
+	:1:*UTF-8* | :1:*utf8* | :1:*UTF8*)
+		ORB_LINES='      ·  ·  ·
+   ·  ◍  ●  ◍  ·
+  ·  ●  AMP  ●  ·
+   ·  ◍  ●  ◍  ·
+      ·  ·  ·'
+		STEP_GLYPH='·──◍'
+		SUCCESS_GLYPH='◍──·'
+		WARN_GLYPH='·─!'
+		ERROR_GLYPH='·─╳'
+		;;
+	*)
+		ORB_LINES='      .  .  .
+   .  o  O  o  .
+  .  O  AMP  O  .
+   .  o  O  o  .
+      .  .  .'
+		STEP_GLYPH='-->'
+		SUCCESS_GLYPH='<--'
+		WARN_GLYPH='!'
+		ERROR_GLYPH='x'
+		;;
+esac
+
+print_header() {
+	if [[ $TTY_OUTPUT -eq 1 ]]; then
+		printf '\n' >&2
+		printf '%s\n' "$ORB_LINES" | while IFS= read -r line; do
+			printf '%s%s%s\n' "$ACCENT" "$line" "$RESET" >&2
+		done
+		printf '\n%s%s%s\n' "$BOLD$ACCENT" 'AMP CLI INSTALLER' "$RESET" >&2
+		printf '%s%s%s\n\n' "$DIM" \
+			'Installs Amp into ~/.amp/bin and links it onto your PATH.' "$RESET" >&2
+	else
+		printf 'Amp CLI installer\n' >&2
+	fi
+}
+
+log() {
+	printf '%s%s%s  %s\n' "$ACCENT" "$STEP_GLYPH" "$RESET" "$1" >&2
+}
+
+warn() {
+	printf '%s%s%s  %s\n' "$WARNING" "$WARN_GLYPH" "$RESET" "$1" >&2
+}
+
+error() {
+	printf '%s%s%s  %b\n' "$ERROR" "$ERROR_GLYPH" "$RESET" "$1" >&2
+	exit 1
+}
+
+success() {
+	printf '%s%s%s  %s%s%s\n' "$SUCCESS" "$SUCCESS_GLYPH" "$RESET" \
+		"$BOLD" "$1" "$RESET" >&2
+}
+
+detail() {
+	printf '      %s%s%s\n' "$DIM" "$1" "$RESET" >&2
+}
 
 # Cleanup on interrupt
 cleanup() {
-	echo -e "\n${YELLOW}Installation interrupted...${NC}"
+	printf '\n' >&2
+	warn 'Installation interrupted'
 	rm -f "$AMP_HOME/amp-install-"* 2>/dev/null || true
 	rm -f "$BIN_DIR/tmp."* 2>/dev/null || true
 	exit 1
 }
 
 trap cleanup INT TERM
-
-log() {
-	echo -e "${BLUE}[INFO]${NC} $1" >&2
-}
-
-warn() {
-	echo -e "${YELLOW}[WARN]${NC} $1" >&2
-}
-
-error() {
-	echo -e "${RED}[ERROR]${NC} $1" >&2
-	exit 1
-}
-
-success() {
-	echo -e "${GREEN}[SUCCESS]${NC} $1" >&2
-}
 
 # Check if command exists
 command_exists() {
@@ -155,8 +223,9 @@ downloader() {
 download_file() {
 	local url="$1"
 	local output_file="$2"
+	local label="${3:-$(basename "$output_file")}"
 
-	log "Downloading $(basename "$output_file")..."
+	log "Downloading $label"
 
 	# Use secure temporary file
 	local temp_file
@@ -171,8 +240,9 @@ download_file() {
 download_gzipped_file() {
 	local url="$1"
 	local output_file="$2"
+	local label="${3:-$(basename "$output_file").gz}"
 
-	log "Downloading $(basename "$output_file").gz..."
+	log "Downloading $label"
 
 	local temp_gz_file
 	temp_gz_file=$(mktemp "$(dirname "$output_file")/tmp.XXXXXX.gz")
@@ -198,7 +268,7 @@ verify_checksum() {
 	local file="$1"
 	local expected_checksum="$2"
 
-	log "Verifying checksum..."
+	log "Verifying checksum"
 
 	local actual_checksum
 	actual_checksum=$($SHA256_CMD "$file" | cut -d' ' -f1)
@@ -223,8 +293,8 @@ verify_signature() {
 	local signature_path="$AMP_HOME/amp-install-signature.minisign"
 	local pubkey_path="$AMP_HOME/signing-key.pub"
 
-	download_file "$signature_url" "$signature_path"
-	download_file "$AMP_URL/.well-known/signing-key.pub" "$pubkey_path"
+	download_file "$signature_url" "$signature_path" 'signature'
+	download_file "$AMP_URL/.well-known/signing-key.pub" "$pubkey_path" 'signing key'
 
 	if ! minisign -Vm "$file" -x "$signature_path" -p "$pubkey_path" >/dev/null 2>&1; then
 		rm -f "$signature_path" "$pubkey_path"
@@ -240,7 +310,7 @@ fetch_latest_version() {
 	local version_url="$AMP_STORAGE_BASE/cli/cli-version.txt"
 	local version_path="$AMP_HOME/amp-install-version.txt"
 
-	download_file "$version_url" "$version_path"
+	download_file "$version_url" "$version_path" 'latest version'
 	cat "$version_path"
 	rm -f "$version_path"
 }
@@ -262,7 +332,7 @@ install_amp_binary() {
 	else
 		# Fetch version first to ensure consistent downloads (avoids race conditions
 		# where a new version is published mid-download)
-		log "Fetching latest version..."
+		log "Fetching latest version"
 		version=$(fetch_latest_version)
 		log "Installing version: $version"
 	fi
@@ -280,16 +350,16 @@ install_amp_binary() {
 	local checksum_path="$AMP_HOME/amp-install-checksum.txt"
 
 	# Download checksum first
-	download_file "$checksum_url" "$checksum_path"
+	download_file "$checksum_url" "$checksum_path" 'checksum'
 	local expected_checksum
 	expected_checksum=$(cat "$checksum_path")
 
 	if has_gzip_support; then
 		# Download compressed binary and verify the decompressed bytes against checksum
-		download_gzipped_file "${binary_url}.gz" "$binary_path"
+		download_gzipped_file "${binary_url}.gz" "$binary_path" 'Amp binary'
 	else
 		warn "gzip not found; downloading uncompressed binary"
-		download_file "$binary_url" "$binary_path"
+		download_file "$binary_url" "$binary_path" 'Amp binary'
 	fi
 
 	# Verify checksum
@@ -445,20 +515,20 @@ update_shell_profile() {
 
 	# Ask user before modifying shell config
 	local tilde_profile="${shell_profile/#$HOME/\~}"
-	echo ""
+	printf '\n'
 	if [[ -t 0 ]]; then
 		# Interactive: ask user
 		read -p "Add ~/.local/bin to your PATH in $tilde_profile? [y/n] " -n 1 -r
-		echo ""
+		printf '\n'
 		if [[ ! $REPLY =~ ^[Yy]$ ]]; then
 			log "Skipped modifying shell config."
 			log "To use amp, add ~/.local/bin to your PATH manually:"
-			echo "  $path_export"
+			printf '  %s\n' "$path_export"
 			return
 		fi
 	else
 		# Non-interactive: add automatically
-		log "Adding ~/.local/bin to PATH in $tilde_profile..."
+		log "Adding ~/.local/bin to PATH in $tilde_profile"
 	fi
 
 	# Create config file if it doesn't exist
@@ -475,16 +545,18 @@ update_shell_profile() {
 	} >> "$shell_profile"
 
 	success "Added ~/.local/bin to PATH in $tilde_profile"
-	echo ""
+	printf '\n'
 	log "To use amp immediately, run:"
-	echo "  $path_export"
+	printf '  %s\n' "$path_export"
 }
 
 # Main installation
 main() {
-	log "Starting Amp CLI binary installation..."
+	print_header
+	detail "Install directory: $BIN_DIR"
 
 	# Check prerequisites
+	log "Checking prerequisites"
 	check_prereqs
 
 	# Create directories
@@ -501,10 +573,9 @@ main() {
 	# Update shell profile
 	update_shell_profile
 
-	echo ""
-	success "Amp CLI installed successfully!"
-	log "Run 'amp --help' to get started"
-	log "Visit $AMP_URL for documentation"
+	success "Amp CLI installed"
+	detail "Run 'amp --help' to get started"
+	detail "Docs: $AMP_URL/manual"
 }
 
 main "$@"
