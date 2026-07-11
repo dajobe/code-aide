@@ -28,7 +28,7 @@
       "command": "claude",
       "install_type": "script",
       "install_url": "https://claude.ai/install.sh",
-      "install_sha256": "005ec1a937f32dfbb74f9e810287bcb12cba2d5cae4c9277aa8c6364adbf1787",
+      "install_sha256": "b3f79015b54c751440a6488f07b1b64f9088742b9052bc1bd356d13108320d2a",
       "version_url": "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/latest",
       "prerequisites": [],
       "min_node_version": null,
