@@ -55,6 +55,7 @@ class TestAntigravityConfig(unittest.TestCase):
         antigravity = tools["antigravity"]
 
         self.assertEqual(antigravity["command"], "agy")
+        self.assertIn("agy", antigravity["aliases"])
         self.assertEqual(antigravity["install_type"], "script")
         self.assertIn("install_sha256", antigravity)
         self.assertIn("version_manifest_url_template", antigravity)
@@ -66,6 +67,40 @@ class TestAntigravityConfig(unittest.TestCase):
 
         self.assertEqual(gemini["command"], "gemini")
         self.assertFalse(gemini["default_install"])
+
+
+class TestResolveToolNames(unittest.TestCase):
+    """Tool aliases resolve without creating duplicate catalog entries."""
+
+    def test_resolves_alias_to_canonical_name(self):
+        tools = {
+            "antigravity": {"aliases": ["agy"]},
+            "gemini": {},
+        }
+        self.assertEqual(
+            code_aide_config.resolve_tool_names(["agy"], tools),
+            ["antigravity"],
+        )
+
+    def test_resolves_command_name_alias(self):
+        tools = {"cursor": {"aliases": ["agent"]}}
+        self.assertEqual(
+            code_aide_config.resolve_tool_names(["agent"], tools),
+            ["cursor"],
+        )
+
+    def test_deduplicates_alias_and_canonical_name(self):
+        tools = {"antigravity": {"aliases": ["agy"]}}
+        self.assertEqual(
+            code_aide_config.resolve_tool_names(["agy", "antigravity"], tools),
+            ["antigravity"],
+        )
+
+    def test_preserves_unknown_name_for_validation(self):
+        self.assertEqual(
+            code_aide_config.resolve_tool_names(["missing"], {}),
+            ["missing"],
+        )
 
 
 class TestVersionsCacheRoundTrip(unittest.TestCase):

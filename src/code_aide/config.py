@@ -118,6 +118,23 @@ def load_tools_config() -> dict:
     return tools
 
 
+def resolve_tool_names(
+    names: list[str], tools: Mapping[str, Dict[str, Any]]
+) -> list[str]:
+    """Resolve configured aliases to canonical tool names, preserving order."""
+    aliases = {
+        alias: tool_name
+        for tool_name, tool_config in tools.items()
+        for alias in tool_config.get("aliases", [])
+    }
+    resolved = []
+    for name in names:
+        canonical = aliases.get(name, name)
+        if canonical not in resolved:
+            resolved.append(canonical)
+    return resolved
+
+
 def save_updated_versions(tools: Mapping[str, Dict[str, Any]]) -> None:
     """Save only dynamic version fields to the user's cache.
 

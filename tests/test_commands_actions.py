@@ -83,6 +83,36 @@ class TestCmdInstall(unittest.TestCase):
 
         mock_check_path.assert_called_once_with(["/home/test/.npm-packages/bin"])
 
+    def test_resolves_tool_alias_before_installing(self):
+        tools = {
+            "antigravity": {
+                "name": "Antigravity CLI",
+                "command": "agy",
+                "aliases": ["agy"],
+                "install_type": "script",
+                "next_steps": "run agy",
+            }
+        }
+        args = type(
+            "Args",
+            (),
+            {"tools": ["agy"], "dryrun": False, "install_prerequisites": False},
+        )()
+
+        with (
+            mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
+            mock.patch.object(commands_actions, "check_prerequisites"),
+            mock.patch.object(
+                commands_actions,
+                "install_tool",
+                return_value=InstallOutcome(True),
+            ) as mock_install,
+            mock.patch.object(commands_actions, "check_path_directories"),
+        ):
+            commands_actions.cmd_install(args)
+
+        mock_install.assert_called_once_with("antigravity", dryrun=False)
+
 
 class TestCmdUpdateVersions(unittest.TestCase):
     """Tests for cmd_update_versions."""

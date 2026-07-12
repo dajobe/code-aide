@@ -37,6 +37,7 @@ from code_aide.config import (
     load_bundled_tools,
     load_versions_cache,
     merge_cached_versions,
+    resolve_tool_names,
     save_updated_versions,
 )
 
@@ -65,6 +66,7 @@ def cmd_install(args: argparse.Namespace) -> None:
                 f"{', '.join(tools_to_install)}"
             )
 
+    tools_to_install = resolve_tool_names(tools_to_install, TOOLS)
     validate_tools(tools_to_install)
 
     if not dryrun:
@@ -144,6 +146,7 @@ def cmd_upgrade(args: argparse.Namespace) -> None:
             info("All installed tools are up to date")
             return
 
+    tools_to_upgrade = resolve_tool_names(tools_to_upgrade, TOOLS)
     validate_tools(tools_to_upgrade)
 
     updated = []
@@ -204,6 +207,7 @@ def cmd_remove(args: argparse.Namespace) -> None:
         tools_to_remove = list(TOOLS.keys())
         info(f"No tools specified, removing all: {', '.join(tools_to_remove)}")
 
+    tools_to_remove = resolve_tool_names(tools_to_remove, TOOLS)
     validate_tools(tools_to_remove)
 
     removed = []
@@ -253,12 +257,12 @@ def cmd_update_versions(args: argparse.Namespace) -> None:
     config: Dict[str, Any] = {"tools": tools}
 
     if args.tools:
-        invalid = [tool for tool in args.tools if tool not in tools]
+        tool_names = resolve_tool_names(args.tools, tools)
+        invalid = [tool for tool in tool_names if tool not in tools]
         if invalid:
             error(f"Unknown tool(s): {', '.join(invalid)}")
             print(f"Available: {', '.join(tools.keys())}", file=sys.stderr)
             sys.exit(1)
-        tool_names = args.tools
     else:
         tool_names = list(tools.keys())
 

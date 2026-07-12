@@ -10,6 +10,7 @@ must not remove or migrate existing Gemini installations.
 ## Design
 
 - Add Antigravity as the default tool key `antigravity`, using command `agy`.
+- Accept `agy` as a command-line alias for the canonical `antigravity` key.
 - Install it through Google's native script and verify the archived script's
   SHA-256 before execution.
 - Query the installer's official platform manifest and read its `version` field

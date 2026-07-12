@@ -67,6 +67,9 @@ code-aide update-versions -y
 | Codex CLI                | `codex`    | npm             | No      |
 | Copilot CLI              | `copilot`  | npm             | No      |
 
+Command aliases are also accepted: `agy` resolves to `antigravity`, and `agent`
+resolves to `cursor`.
+
 ## How Version Data Works
 
 code-aide uses a two-layer version data model:
@@ -92,6 +95,7 @@ consulted when the relevant install method or platform applies.
 |:--------------------------------|:---------|:---------------------------------------------------------------------------------------------|
 | `name`                          | Yes      | Display name for status output                                                               |
 | `command`                       | Yes      | Binary name (looked up in `PATH`)                                                            |
+| `aliases`                       | No       | Alternate names accepted by commands and resolved to the canonical tool key                  |
 | `install_type`                  | Yes      | One of `npm`, `script`, `direct_download`, `pkg`                                             |
 | `version_args`                  | No       | List of arguments passed to the binary to print its version (default: `["--version"]`)       |
 | `version_url`                   | No       | URL queried by `update-versions` to discover the latest upstream version                     |
