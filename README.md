@@ -57,7 +57,7 @@ code-aide update-versions -y
 
 | Tool                     | Command    | Install Type    | Default |
 |:-------------------------|:-----------|:----------------|:--------|
-| Cursor CLI               | `agent`    | Direct download | Yes     |
+| Cursor CLI               | `agent`    | Direct download | No      |
 | Claude CLI (Claude Code) | `claude`   | Script          | Yes     |
 | Antigravity CLI          | `agy`      | Script          | Yes     |
 | Gemini CLI               | `gemini`   | npm             | No      |

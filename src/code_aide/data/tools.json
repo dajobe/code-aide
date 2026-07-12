@@ -24,7 +24,7 @@
         "--version"
       ],
       "docs_url": "https://docs.cursor.com/",
-      "default_install": true
+      "default_install": false
     },
     "claude": {
       "name": "Claude CLI (Claude Code)",

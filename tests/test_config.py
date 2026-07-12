@@ -68,6 +68,12 @@ class TestAntigravityConfig(unittest.TestCase):
         self.assertEqual(gemini["command"], "gemini")
         self.assertFalse(gemini["default_install"])
 
+    def test_cursor_remains_available_but_is_not_default(self):
+        cursor = code_aide_config.load_bundled_tools()["tools"]["cursor"]
+
+        self.assertEqual(cursor["command"], "agent")
+        self.assertFalse(cursor["default_install"])
+
 
 class TestResolveToolNames(unittest.TestCase):
     """Tool aliases resolve without creating duplicate catalog entries."""
