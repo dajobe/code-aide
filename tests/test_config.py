@@ -38,12 +38,34 @@ class TestLoadBundledTools(unittest.TestCase):
         self.assertIn("claude", tools)
         self.assertIn("copilot", tools)
         self.assertIn("gemini", tools)
+        self.assertIn("antigravity", tools)
         self.assertIn("opencode", tools)
         self.assertIn("kilo", tools)
         for tool_name, tool_data in tools.items():
             self.assertIn("name", tool_data)
             self.assertIn("command", tool_data)
             self.assertIn("install_type", tool_data)
+
+
+class TestAntigravityConfig(unittest.TestCase):
+    """Antigravity remains separate from the supported Gemini CLI entry."""
+
+    def test_antigravity_uses_verified_script_and_manifest(self):
+        tools = code_aide_config.load_bundled_tools()["tools"]
+        antigravity = tools["antigravity"]
+
+        self.assertEqual(antigravity["command"], "agy")
+        self.assertEqual(antigravity["install_type"], "script")
+        self.assertIn("install_sha256", antigravity)
+        self.assertIn("version_manifest_url_template", antigravity)
+        self.assertTrue(antigravity["self_updates"])
+        self.assertTrue(antigravity["default_install"])
+
+    def test_gemini_remains_available_but_is_not_default(self):
+        gemini = code_aide_config.load_bundled_tools()["tools"]["gemini"]
+
+        self.assertEqual(gemini["command"], "gemini")
+        self.assertFalse(gemini["default_install"])
 
 
 class TestVersionsCacheRoundTrip(unittest.TestCase):

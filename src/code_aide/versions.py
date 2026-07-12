@@ -3,6 +3,7 @@
 import email.utils
 import hashlib
 import json
+import platform
 import re
 import urllib.request
 from datetime import datetime, timezone
@@ -116,6 +117,25 @@ def version_is_newer(version_a: str, version_b: str) -> bool:
     return a_parts > b_parts
 
 
+def format_version_manifest_url(url_template: str) -> str:
+    """Fill a manifest URL template with the current OS and architecture."""
+    os_name = platform.system().lower()
+    if os_name not in ("darwin", "linux"):
+        raise ValueError(f"Unsupported manifest operating system: {os_name}")
+
+    machine = platform.machine().lower()
+    architecture = {
+        "x86_64": "amd64",
+        "amd64": "amd64",
+        "arm64": "arm64",
+        "aarch64": "arm64",
+    }.get(machine)
+    if architecture is None:
+        raise ValueError(f"Unsupported manifest architecture: {machine}")
+
+    return url_template.format(platform=f"{os_name}_{architecture}")
+
+
 def check_npm_tool(
     tool_name: str, tool_config: Dict[str, Any], verbose: bool = False
 ) -> Dict[str, Any]:
@@ -176,6 +196,26 @@ def extract_script_version(
     script_content: bytes,
 ) -> Optional[str]:
     """Try to extract a version string from script content or version URL."""
+    version_manifest_url_template = tool_config.get("version_manifest_url_template")
+    if version_manifest_url_template:
+        try:
+            version_manifest_url = format_version_manifest_url(
+                version_manifest_url_template
+            )
+            manifest_data, _ = fetch_url(version_manifest_url)
+            manifest = json.loads(manifest_data)
+            version = manifest.get("version")
+            if isinstance(version, str) and version.strip():
+                return version.strip()
+        except (
+            OSError,
+            UnicodeDecodeError,
+            json.JSONDecodeError,
+            TypeError,
+            ValueError,
+        ):
+            pass
+
     version_url = tool_config.get("version_url")
     if version_url:
         try:

@@ -197,6 +197,27 @@ class TestMigrateInstallMethod(unittest.TestCase):
         self.assertEqual(result, UpgradeResult.CHANGED)
         mock_script.assert_called_once()
 
+    def test_upgrade_self_updating_tool_does_not_rerun_installer(self):
+        tool_config = {
+            "name": "Self-updating Tool",
+            "command": "self-tool",
+            "install_type": "script",
+            "install_url": "https://example.com/install.sh",
+            "self_updates": True,
+        }
+        with (
+            mock.patch.dict(constants._TOOLS_DATA, {"test": tool_config}),
+            mock.patch.object(cli_operations, "is_tool_installed", return_value=True),
+            mock.patch.object(
+                cli_operations, "is_deprecated_install", return_value=False
+            ),
+            mock.patch.object(cli_handlers, "run_install_script") as mock_script,
+        ):
+            result = cli_operations.upgrade_tool("test")
+
+        self.assertEqual(result, UpgradeResult.UNCHANGED)
+        mock_script.assert_not_called()
+
     def test_upgrade_script_detection_uses_tarball_when_config_direct_download(self):
         """Mis-detected script install still upgrades via tarball for cursor-like tools."""
         tool_config = {

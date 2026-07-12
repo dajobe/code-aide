@@ -187,6 +187,13 @@ def upgrade_tool(tool_name: str) -> UpgradeResult:
     if is_deprecated_install(tool_name):
         return _migrate_install_method(tool_name)
 
+    if tool_config.get("self_updates"):
+        info(
+            f"{tool_config['name']} updates itself in the background when it runs; "
+            f"launch '{tool_config['command']}' to allow it to update."
+        )
+        return UpgradeResult.UNCHANGED
+
     install_info = detect_install_method(tool_name)
     method = parse_install_method(install_info["method"])
     detail = install_info["detail"]

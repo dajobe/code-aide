@@ -1,7 +1,7 @@
 [project]
 name = "code-aide"
 dynamic = ["version"]
-description = "Manage AI coding CLI tools (Claude, Copilot, Cursor, Gemini, Amp, Codex)"
+description = "Manage AI coding CLI tools (Claude, Antigravity, Copilot, Cursor, Gemini, Amp, Codex)"
 readme = "README.md"
 authors = [
     { name = "Dave Beckett" },

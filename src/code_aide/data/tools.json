@@ -50,14 +50,31 @@
         "npm"
       ],
       "min_node_version": 20,
-      "next_steps": "Run 'gemini' and choose 'Login with Google' to authenticate",
+      "next_steps": "Run 'gemini' and authenticate with a supported enterprise, Google Cloud, or API-key account",
       "version_args": [
         "--version"
       ],
       "docs_url": "https://github.com/google-gemini/gemini-cli",
-      "default_install": true,
+      "default_install": false,
       "freebsd_port": "gemini-cli",
       "freebsd_pkg_repo": "FreeBSD-latest"
+    },
+    "antigravity": {
+      "name": "Antigravity CLI",
+      "command": "agy",
+      "install_type": "script",
+      "install_url": "https://antigravity.google/cli/install.sh",
+      "install_sha256": "ee1ea43ce4e9e56356c4ab6dad907ef357ae4bdfcaadb682735909fb57c9c640",
+      "version_manifest_url_template": "https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/{platform}.json",
+      "prerequisites": [],
+      "min_node_version": null,
+      "next_steps": "Run 'agy' to authenticate and start",
+      "version_args": [
+        "--version"
+      ],
+      "docs_url": "https://antigravity.google/docs/cli-overview",
+      "self_updates": true,
+      "default_install": true
     },
     "amp": {
       "name": "Amp (Sourcegraph)",

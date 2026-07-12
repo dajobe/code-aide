@@ -58,6 +58,7 @@ class UpgradeDecision(Enum):
     UPGRADE = auto()
     MIGRATION = auto()
     PACKAGE_MANAGED = auto()
+    SELF_UPDATING = auto()
     NOT_INSTALLED = auto()
     UNKNOWN = auto()
 
@@ -183,6 +184,20 @@ class ToolUpgradeEvaluator:
         package_info: Optional[PackageInfo],
     ) -> ToolUpgradeAssessment:
         version_state = self._catalog_version_state(status.get("version"))
+        if self.tool_config.get("self_updates"):
+            decision = (
+                UpgradeDecision.CURRENT
+                if version_state == VersionDisplayState.UP_TO_DATE
+                else UpgradeDecision.SELF_UPDATING
+            )
+            return self._result(
+                decision=decision,
+                version_state=version_state,
+                status=status,
+                install_info=install_info,
+                package_info=package_info,
+            )
+
         if version_state == VersionDisplayState.UP_TO_DATE:
             decision = UpgradeDecision.CURRENT
         elif version_state == VersionDisplayState.OUTDATED:

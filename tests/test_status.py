@@ -193,6 +193,24 @@ class TestToolUpgradeEvaluator(unittest.TestCase):
         )
         self.assertTrue(assessment.actionable_by_upgrade)
 
+    def test_outdated_self_updating_tool_is_not_actionable(self):
+        assessment = self._evaluate(
+            {
+                "name": "Self-updating Tool",
+                "command": "self-tool",
+                "install_type": "script",
+                "latest_version": "2.0.0",
+                "self_updates": True,
+            },
+            status={"installed": True, "version": "1.0.0", "errors": []},
+            install_info={"method": "script", "detail": None},
+        )
+        self.assertEqual(assessment.decision, cli_status.UpgradeDecision.SELF_UPDATING)
+        self.assertEqual(
+            assessment.version_state, cli_status.VersionDisplayState.OUTDATED
+        )
+        self.assertFalse(assessment.actionable_by_upgrade)
+
     def test_brew_outdated_is_upgrade(self):
         assessment = self._evaluate(
             {

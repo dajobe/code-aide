@@ -1,6 +1,7 @@
 """Unit tests for CLI versioning and update-check helpers."""
 
 import unittest
+from unittest import mock
 
 from code_aide import versions as cli_versions
 
@@ -181,6 +182,33 @@ class TestVersionIsNewer(unittest.TestCase):
         )
 
 
+class TestFormatVersionManifestUrl(unittest.TestCase):
+    """Tests for platform-specific release manifest URLs."""
+
+    @mock.patch.object(cli_versions.platform, "machine", return_value="arm64")
+    @mock.patch.object(cli_versions.platform, "system", return_value="Darwin")
+    def test_formats_macos_arm64(self, _system, _machine):
+        result = cli_versions.format_version_manifest_url(
+            "https://example.com/manifests/{platform}.json"
+        )
+        self.assertEqual(result, "https://example.com/manifests/darwin_arm64.json")
+
+    @mock.patch.object(cli_versions.platform, "machine", return_value="x86_64")
+    @mock.patch.object(cli_versions.platform, "system", return_value="Linux")
+    def test_formats_linux_amd64(self, _system, _machine):
+        result = cli_versions.format_version_manifest_url(
+            "https://example.com/manifests/{platform}.json"
+        )
+        self.assertEqual(result, "https://example.com/manifests/linux_amd64.json")
+
+    @mock.patch.object(cli_versions.platform, "system", return_value="Windows")
+    def test_rejects_unsupported_os(self, _system):
+        with self.assertRaises(ValueError):
+            cli_versions.format_version_manifest_url(
+                "https://example.com/manifests/{platform}.json"
+            )
+
+
 class TestParseHttpDate(unittest.TestCase):
     """Tests for parse_http_date."""
 
@@ -323,3 +351,44 @@ class TestExtractScriptVersion(unittest.TestCase):
             cli_versions.extract_script_version("amp", {}, b'VERSION="2.0.1"\n'),
             "2.0.1",
         )
+
+    @mock.patch.object(
+        cli_versions,
+        "format_version_manifest_url",
+        return_value="https://example.com/manifests/darwin_arm64.json",
+    )
+    @mock.patch.object(cli_versions, "fetch_url")
+    def test_reads_version_from_json_manifest(self, mock_fetch, mock_format):
+        mock_fetch.return_value = (b'{"version": "1.1.1"}', None)
+
+        result = cli_versions.extract_script_version(
+            "antigravity",
+            {
+                "version_manifest_url_template": (
+                    "https://example.com/manifests/{platform}.json"
+                )
+            },
+            b"#!/bin/bash\n",
+        )
+
+        self.assertEqual(result, "1.1.1")
+        mock_format.assert_called_once()
+        mock_fetch.assert_called_once_with(
+            "https://example.com/manifests/darwin_arm64.json"
+        )
+
+    @mock.patch.object(cli_versions, "fetch_url")
+    def test_invalid_manifest_falls_back_to_script(self, mock_fetch):
+        mock_fetch.return_value = (b"not json", None)
+
+        result = cli_versions.extract_script_version(
+            "antigravity",
+            {
+                "version_manifest_url_template": (
+                    "https://example.com/manifests/{platform}.json"
+                )
+            },
+            b'VERSION="1.0.0"\n',
+        )
+
+        self.assertEqual(result, "1.0.0")

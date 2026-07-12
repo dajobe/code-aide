@@ -3,7 +3,8 @@
 An aide for your AI coding tools.
 
 Manages installation, upgrade, removal, and version tracking of AI coding CLI
-tools: Claude Code, Copilot, Cursor, Gemini, Amp, Codex, OpenCode, and Kilo.
+tools: Claude Code, Antigravity, Copilot, Cursor, Gemini, Amp, Codex, OpenCode,
+and Kilo.
 
 ## Installation
 
@@ -31,7 +32,7 @@ code-aide status
 code-aide status -l
 
 # Install specific tools
-code-aide install claude gemini
+code-aide install claude antigravity
 
 # Install all default tools
 code-aide install
@@ -58,7 +59,8 @@ code-aide update-versions -y
 |:-------------------------|:-----------|:----------------|:--------|
 | Cursor CLI               | `agent`    | Direct download | Yes     |
 | Claude CLI (Claude Code) | `claude`   | Script          | Yes     |
-| Gemini CLI               | `gemini`   | npm             | Yes     |
+| Antigravity CLI          | `agy`      | Script          | Yes     |
+| Gemini CLI               | `gemini`   | npm             | No      |
 | OpenCode                 | `opencode` | npm             | No      |
 | Kilo CLI                 | `kilo`     | npm             | No      |
 | Amp (Sourcegraph)        | `amp`      | Script          | No      |
@@ -86,29 +88,31 @@ Each entry in `tools.json` describes one managed tool. Required fields are
 `name`, `command`, and `install_type`; the others are optional and only
 consulted when the relevant install method or platform applies.
 
-| Field                         | Required | Notes                                                                                        |
-|:------------------------------|:---------|:---------------------------------------------------------------------------------------------|
-| `name`                        | Yes      | Display name for status output                                                               |
-| `command`                     | Yes      | Binary name (looked up in `PATH`)                                                            |
-| `install_type`                | Yes      | One of `npm`, `script`, `direct_download`, `pkg`                                             |
-| `version_args`                | No       | List of arguments passed to the binary to print its version (default: `["--version"]`)       |
-| `version_url`                 | No       | URL queried by `update-versions` to discover the latest upstream version                     |
-| `latest_version`              | Cache    | Last known upstream version (filled by `update-versions`)                                    |
-| `latest_date`                 | Cache    | Release date for `latest_version`                                                            |
-| `prerequisites`               | No       | List of required external commands (e.g. `["npm"]`)                                          |
-| `min_node_version`            | No       | Minimum major Node.js version required                                                       |
-| `npm_package`                 | npm      | npm package name (e.g. `@anthropic-ai/claude-code`)                                          |
-| `install_url`                 | script   | URL of the install script that will be downloaded and piped to `bash`                        |
-| `install_sha256`              | script   | SHA-256 of the install script body — required for verified installs                          |
-| `install_script_path_prepend` | script   | Extra directories prepended to `PATH` when the install script runs (e.g. `["~/.local/bin"]`) |
-| `download_url_template`       | direct   | URL template with `{version}`, `{os}`, `{arch}` placeholders                                 |
-| `install_dir`                 | direct   | Directory to extract into; supports `{version}`                                              |
-| `bin_dir`                     | direct   | Directory where symlinks for `command` are created (e.g. `~/.local/bin`)                     |
-| `symlinks`                    | direct   | Map of `link_name` → relative path inside `install_dir` to symlink into `bin_dir`            |
-| `freebsd_port`                | FreeBSD  | FreeBSD ports/pkg name (used when running on FreeBSD)                                        |
-| `freebsd_pkg_repo`            | FreeBSD  | Optional non-default pkg repository name (passed via `pkg install -r <repo>`)                |
-| `next_steps`                  | No       | Free-form text printed after a successful install                                            |
-| `docs_url`                    | No       | Documentation URL printed after install                                                      |
+| Field                           | Required | Notes                                                                                        |
+|:--------------------------------|:---------|:---------------------------------------------------------------------------------------------|
+| `name`                          | Yes      | Display name for status output                                                               |
+| `command`                       | Yes      | Binary name (looked up in `PATH`)                                                            |
+| `install_type`                  | Yes      | One of `npm`, `script`, `direct_download`, `pkg`                                             |
+| `version_args`                  | No       | List of arguments passed to the binary to print its version (default: `["--version"]`)       |
+| `version_url`                   | No       | URL queried by `update-versions` to discover the latest upstream version                     |
+| `version_manifest_url_template` | No       | JSON manifest URL template with `{platform}`; reads its `version` field                      |
+| `latest_version`                | Cache    | Last known upstream version (filled by `update-versions`)                                    |
+| `latest_date`                   | Cache    | Release date for `latest_version`                                                            |
+| `prerequisites`                 | No       | List of required external commands (e.g. `["npm"]`)                                          |
+| `min_node_version`              | No       | Minimum major Node.js version required                                                       |
+| `npm_package`                   | npm      | npm package name (e.g. `@anthropic-ai/claude-code`)                                          |
+| `install_url`                   | script   | URL of the install script that will be downloaded and piped to `bash`                        |
+| `install_sha256`                | script   | SHA-256 of the install script body — required for verified installs                          |
+| `install_script_path_prepend`   | script   | Extra directories prepended to `PATH` when the install script runs (e.g. `["~/.local/bin"]`) |
+| `download_url_template`         | direct   | URL template with `{version}`, `{os}`, `{arch}` placeholders                                 |
+| `install_dir`                   | direct   | Directory to extract into; supports `{version}`                                              |
+| `bin_dir`                       | direct   | Directory where symlinks for `command` are created (e.g. `~/.local/bin`)                     |
+| `symlinks`                      | direct   | Map of `link_name` → relative path inside `install_dir` to symlink into `bin_dir`            |
+| `freebsd_port`                  | FreeBSD  | FreeBSD ports/pkg name (used when running on FreeBSD)                                        |
+| `freebsd_pkg_repo`              | FreeBSD  | Optional non-default pkg repository name (passed via `pkg install -r <repo>`)                |
+| `next_steps`                    | No       | Free-form text printed after a successful install                                            |
+| `docs_url`                      | No       | Documentation URL printed after install                                                      |
+| `self_updates`                  | No       | Tool updates itself when run; excludes it from managed upgrade actions                       |
 
 ## Features
 
