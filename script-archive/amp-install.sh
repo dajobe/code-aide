@@ -575,7 +575,7 @@ main() {
 
 	success "Amp CLI installed"
 	detail "Run 'amp --help' to get started"
-	detail "Docs: $AMP_URL/manual"
+	detail "Docs: $AMP_URL/docs"
 }
 
 main "$@"
