@@ -60,3 +60,13 @@ def run_command(
         check=check,
         stdin=subprocess.DEVNULL,
     )
+
+
+def called_process_error_message(exc: subprocess.CalledProcessError) -> str:
+    """Return the best available error output from a failed command.
+
+    Commands run with ``capture=False`` leave ``exc.stderr`` as None
+    because their output already went straight to the terminal; fall
+    back to captured stdout, then to the exception summary.
+    """
+    return exc.stderr or exc.stdout or str(exc)

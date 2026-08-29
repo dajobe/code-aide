@@ -47,3 +47,19 @@ class TestConsoleExecution(unittest.TestCase):
         with mock.patch.object(console.subprocess, "run", return_value=completed):
             result = console.run_command(["cmd"], check=True)
         self.assertIs(result, completed)
+
+
+class TestCalledProcessErrorMessage(unittest.TestCase):
+    """Tests for called_process_error_message fallbacks."""
+
+    def test_prefers_stderr(self):
+        exc = subprocess.CalledProcessError(1, ["cmd"], output="out", stderr="err")
+        self.assertEqual(console.called_process_error_message(exc), "err")
+
+    def test_falls_back_to_stdout(self):
+        exc = subprocess.CalledProcessError(1, ["cmd"], output="out", stderr=None)
+        self.assertEqual(console.called_process_error_message(exc), "out")
+
+    def test_none_values_fall_back_to_summary(self):
+        exc = subprocess.CalledProcessError(1, ["cmd"], output=None, stderr=None)
+        self.assertEqual(console.called_process_error_message(exc), str(exc))

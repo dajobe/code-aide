@@ -12,7 +12,14 @@ import shutil
 import subprocess
 from typing import Callable, Dict, Optional
 
-from code_aide.console import error, info, run_command, success, warning
+from code_aide.console import (
+    called_process_error_message,
+    error,
+    info,
+    run_command,
+    success,
+    warning,
+)
 from code_aide.install import (
     get_install_script_env,
     install_direct_download,
@@ -154,7 +161,8 @@ def _remove_script(name: str, cfg: Dict, _detail: Optional[str]) -> bool:
             success(f"{cfg['name']} removed successfully")
         except subprocess.CalledProcessError as exc:
             error(
-                f"Failed to remove {cfg['name']}: {exc.stderr}. "
+                f"Failed to remove {cfg['name']}: "
+                f"{called_process_error_message(exc)}. "
                 f"Please remove manually: {command_path}"
             )
             return False

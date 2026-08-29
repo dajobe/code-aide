@@ -12,7 +12,15 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 from code_aide.constants import TOOLS
-from code_aide.console import command_exists, error, info, run_command, success, warning
+from code_aide.console import (
+    called_process_error_message,
+    command_exists,
+    error,
+    info,
+    run_command,
+    success,
+    warning,
+)
 from code_aide.install_types import InstallType, get_tool_install_type
 from code_aide.versions import check_script_tool, fetch_url
 
@@ -397,7 +405,10 @@ def install_tool(
                 info(f"Documentation: {tool_config['docs_url']}")
             return InstallOutcome(True)
         except subprocess.CalledProcessError as exc:
-            error(f"Failed to install {tool_config['name']}: {exc.stderr}")
+            error(
+                f"Failed to install {tool_config['name']}: "
+                f"{called_process_error_message(exc)}"
+            )
             return InstallOutcome(False)
         except Exception as exc:
             error(f"Failed to install {tool_config['name']}: {exc}")
@@ -462,7 +473,10 @@ def install_tool(
         return InstallOutcome(True)
 
     except subprocess.CalledProcessError as exc:
-        error(f"Failed to install {tool_config['name']}: {exc.stderr}")
+        error(
+            f"Failed to install {tool_config['name']}: "
+            f"{called_process_error_message(exc)}"
+        )
         return InstallOutcome(False)
     except Exception as exc:
         error(f"Failed to install {tool_config['name']}: {exc}")

@@ -8,6 +8,7 @@ from typing import List, Optional
 
 from code_aide.constants import TOOLS
 from code_aide.console import (
+    called_process_error_message,
     command_exists,
     error,
     info,
@@ -57,9 +58,7 @@ def install_nodejs_npm() -> bool:
         success("Node.js and npm installed successfully")
         return True
     except subprocess.CalledProcessError as exc:
-        stderr_msg = (
-            getattr(exc, "stderr", None) or getattr(exc, "stdout", None) or str(exc)
-        )
+        stderr_msg = called_process_error_message(exc)
         error(f"Failed to install Node.js and npm: {stderr_msg}")
         return False
     except Exception as exc:

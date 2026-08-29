@@ -21,7 +21,13 @@ from code_aide.install_types import (
     parse_install_method,
 )
 from code_aide.operation_handlers import REMOVE_HANDLERS, UPGRADE_HANDLERS
-from code_aide.console import error, info, success, warning
+from code_aide.console import (
+    called_process_error_message,
+    error,
+    info,
+    success,
+    warning,
+)
 from code_aide.prereqs import is_tool_installed
 from code_aide.status import get_tool_status
 
@@ -216,7 +222,10 @@ def upgrade_tool(tool_name: str) -> UpgradeResult:
         return _upgrade_result_from_snapshots(tool_config, before, after)
 
     except subprocess.CalledProcessError as exc:
-        error(f"Failed to upgrade {tool_config['name']}: {exc.stderr}")
+        error(
+            f"Failed to upgrade {tool_config['name']}: "
+            f"{called_process_error_message(exc)}"
+        )
         return UpgradeResult.FAILED
     except Exception as exc:
         error(f"Failed to upgrade {tool_config['name']}: {exc}")
@@ -251,7 +260,10 @@ def remove_tool(tool_name: str) -> bool:
     try:
         return handler(tool_name, tool_config, detail)
     except subprocess.CalledProcessError as exc:
-        error(f"Failed to remove {tool_config['name']}: {exc.stderr}")
+        error(
+            f"Failed to remove {tool_config['name']}: "
+            f"{called_process_error_message(exc)}"
+        )
         return False
     except Exception as exc:
         error(f"Failed to remove {tool_config['name']}: {exc}")
