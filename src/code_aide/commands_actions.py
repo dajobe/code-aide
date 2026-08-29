@@ -34,6 +34,7 @@ from code_aide.versions import (
     print_check_results_table,
 )
 from code_aide.config import (
+    ensure_versions_cache,
     load_bundled_tools,
     load_versions_cache,
     merge_cached_versions,
@@ -136,6 +137,9 @@ def cmd_upgrade(args: argparse.Namespace) -> None:
         info(f"Upgrading specified tools: {', '.join(tools_to_upgrade)}")
     else:
         tools_to_upgrade = []
+        # Default selection is driven by latest_version, so refresh stale
+        # cache data first; named upgrades below skip this.
+        ensure_versions_cache(TOOLS)
         for name, config in TOOLS.items():
             assessment = ToolUpgradeEvaluator(name, config).evaluate()
             if assessment.actionable_by_upgrade and name not in tools_to_upgrade:

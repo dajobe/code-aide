@@ -218,6 +218,7 @@ class TestCmdUpgrade(unittest.TestCase):
         with (
             mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
             mock.patch.object(commands_actions, "validate_tools"),
+            mock.patch.object(commands_actions, "ensure_versions_cache"),
             mock.patch.object(commands_actions, "is_tool_installed", return_value=True),
             mock.patch.object(
                 commands_actions,
@@ -246,6 +247,7 @@ class TestCmdUpgrade(unittest.TestCase):
         with (
             mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
             mock.patch.object(commands_actions, "validate_tools"),
+            mock.patch.object(commands_actions, "ensure_versions_cache"),
             mock.patch.object(commands_actions, "is_tool_installed", return_value=True),
             mock.patch(
                 "code_aide.status.detect_install_method",
@@ -285,6 +287,7 @@ class TestCmdUpgrade(unittest.TestCase):
         with (
             mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
             mock.patch.object(commands_actions, "validate_tools"),
+            mock.patch.object(commands_actions, "ensure_versions_cache"),
             mock.patch.object(commands_actions, "is_tool_installed", return_value=True),
             mock.patch(
                 "code_aide.status.detect_install_method",
@@ -318,6 +321,7 @@ class TestCmdUpgrade(unittest.TestCase):
         with (
             mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
             mock.patch.object(commands_actions, "validate_tools"),
+            mock.patch.object(commands_actions, "ensure_versions_cache"),
             mock.patch.object(commands_actions, "is_tool_installed", return_value=True),
             mock.patch(
                 "code_aide.status.detect_install_method",
@@ -343,6 +347,67 @@ class TestCmdUpgrade(unittest.TestCase):
         output = buf.getvalue()
         self.assertIn("All installed tools are up to date", output)
         mock_upgrade.assert_not_called()
+
+    def test_default_upgrade_refreshes_versions_cache(self):
+        tools = {
+            "x": {
+                "name": "Example Tool",
+                "command": "example",
+                "install_type": "script",
+                "latest_version": "1.0.0",
+            }
+        }
+        args = type("Args", (), {"tools": []})()
+
+        with (
+            mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
+            mock.patch.object(commands_actions, "validate_tools"),
+            mock.patch.object(
+                commands_actions, "ensure_versions_cache"
+            ) as mock_refresh,
+            mock.patch.object(commands_actions, "is_tool_installed", return_value=True),
+            mock.patch(
+                "code_aide.status.detect_install_method",
+                return_value={"method": "script", "detail": None},
+            ),
+            mock.patch(
+                "code_aide.status.get_tool_status",
+                return_value={"installed": True, "version": "1.0.0"},
+            ),
+            mock.patch.object(commands_actions, "upgrade_tool") as mock_upgrade,
+        ):
+            commands_actions.cmd_upgrade(args)
+
+        mock_refresh.assert_called_once()
+        mock_upgrade.assert_not_called()
+
+    def test_named_upgrade_does_not_refresh_versions_cache(self):
+        tools = {
+            "x": {
+                "name": "Example Tool",
+                "command": "example",
+                "install_type": "script",
+                "latest_version": "1.0.0",
+            }
+        }
+        args = type("Args", (), {"tools": ["x"]})()
+
+        with (
+            mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
+            mock.patch.object(commands_actions, "validate_tools"),
+            mock.patch.object(
+                commands_actions, "ensure_versions_cache"
+            ) as mock_refresh,
+            mock.patch.object(commands_actions, "is_tool_installed", return_value=True),
+            mock.patch.object(
+                commands_actions,
+                "upgrade_tool",
+                return_value=UpgradeResult.UNCHANGED,
+            ),
+        ):
+            commands_actions.cmd_upgrade(args)
+
+        mock_refresh.assert_not_called()
 
 
 class TestCmdRemove(unittest.TestCase):
