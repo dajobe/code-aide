@@ -165,6 +165,30 @@ def detect_os_arch() -> tuple:
     return os_name, arch
 
 
+def fetch_download_checksum(tool_config: Dict[str, Any]) -> Optional[str]:
+    """Download a direct-download tarball and return its SHA256 hex digest.
+
+    Resolves the download URL with the cached latest_version. Returns
+    None when the checksum cannot be computed (missing version, network
+    failure, or unsupported platform).
+    """
+    version = tool_config.get("latest_version")
+    if not version:
+        warning("No cached latest_version; cannot compute download SHA256")
+        return None
+    try:
+        os_name, arch = detect_os_arch()
+        url = tool_config["download_url_template"].format(
+            version=version, os=os_name, arch=arch
+        )
+        info(f"Downloading {url} to compute SHA256...")
+        data, _ = fetch_url(url, timeout=DOWNLOAD_TIMEOUT_SECONDS)
+    except Exception as exc:
+        warning(f"Could not compute download SHA256: {exc}")
+        return None
+    return hashlib.sha256(data).hexdigest()
+
+
 def extract_tar_member(
     tar_file: tarfile.TarFile, member: tarfile.TarInfo, destination: str
 ) -> None:
@@ -227,6 +251,30 @@ def install_direct_download(
         info("Downloading package...")
         tarball_data, _ = fetch_url(download_url, timeout=DOWNLOAD_TIMEOUT_SECONDS)
         success(f"Downloaded {len(tarball_data)} bytes")
+
+        expected_sha256 = cfg.get("download_sha256")
+        if expected_sha256:
+            actual_sha256 = hashlib.sha256(tarball_data).hexdigest()
+            if actual_sha256 != expected_sha256:
+                error(f"SHA256 verification FAILED for {tool_name} download!")
+                error(f"Expected: {expected_sha256}")
+                error(f"Actual:   {actual_sha256}")
+                error(
+                    "The downloaded tarball does not match the checksum recorded "
+                    "by 'code-aide update-versions'."
+                )
+                error(
+                    "It may be corrupted or tampered with. After reviewing, "
+                    "re-run 'code-aide update-versions -y' to record the new "
+                    "checksum."
+                )
+                return False
+            success("Download SHA256 verification passed")
+        else:
+            warning(
+                "No download SHA256 recorded - tarball integrity cannot be " "verified!"
+            )
+            warning("Run 'code-aide update-versions -y' to record checksums.")
 
         install_parent = os.path.dirname(install_dir) or "."
         os.makedirs(install_parent, exist_ok=True)

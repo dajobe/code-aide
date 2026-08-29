@@ -6,7 +6,7 @@ from typing import Any, Dict, List
 
 from code_aide.constants import TOOLS
 from code_aide.detection import detect_install_method, get_brew_package_info
-from code_aide.install import install_tool
+from code_aide.install import fetch_download_checksum, install_tool
 from code_aide.install_types import (
     InstallMethod,
     InstallType,
@@ -371,6 +371,30 @@ def cmd_update_versions(args: argparse.Namespace) -> None:
         if tool_entry.get("latest_version") != normalized:
             tool_entry["latest_version"] = normalized
             version_info_changed = True
+
+    # Record the tarball checksum for direct-download tools so later
+    # installs can verify integrity against it.
+    if not args.dryrun:
+        for tool_name in tool_names:
+            tool_entry = config["tools"][tool_name]
+            if (
+                parse_install_type(tool_entry.get("install_type"))
+                != InstallType.DIRECT_DOWNLOAD
+            ):
+                continue
+            if "download_url_template" not in tool_entry:
+                continue
+            if not tool_entry.get("latest_version"):
+                continue
+            checksum = fetch_download_checksum(tool_entry)
+            if not checksum:
+                continue
+            if tool_entry.get("download_sha256") != checksum:
+                tool_entry["download_sha256"] = checksum
+                version_info_changed = True
+                print(f"Recorded download SHA256 for {tool_name}.")
+            else:
+                print(f"Download SHA256 for {tool_name} is unchanged.")
 
     def _save(tools: dict) -> str:
         """Save versions to user cache. Returns description."""

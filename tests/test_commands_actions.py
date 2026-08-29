@@ -186,6 +186,58 @@ class TestCmdUpdateVersions(unittest.TestCase):
         self.assertIn("No upstream config changes detected.", buf.getvalue())
         mock_save.assert_not_called()
 
+    def test_records_download_checksum_for_direct_download_tool(self):
+        tools = {
+            "dl": {
+                "name": "DL Tool",
+                "command": "dl",
+                "install_type": "direct_download",
+                "download_url_template": "https://example.com/{version}.tar.gz",
+            }
+        }
+        args = type(
+            "Args",
+            (),
+            {"tools": [], "dryrun": False, "yes": True, "verbose": False},
+        )()
+
+        with (
+            mock.patch.object(
+                commands_actions,
+                "load_bundled_tools",
+                return_value={"tools": tools},
+            ),
+            mock.patch.object(commands_actions, "load_versions_cache", return_value={}),
+            mock.patch.object(
+                commands_actions,
+                "check_script_tool",
+                return_value={
+                    "tool": "dl",
+                    "type": "direct_download",
+                    "version": "1.0.0",
+                    "date": "2026-08-01",
+                    "status": "ok",
+                    "update": None,
+                },
+            ),
+            mock.patch.object(
+                commands_actions,
+                "fetch_download_checksum",
+                return_value="c" * 64,
+            ) as mock_checksum,
+            mock.patch.object(commands_actions, "save_updated_versions") as mock_save,
+            mock.patch("builtins.input") as mock_input,
+            contextlib.redirect_stdout(io.StringIO()) as buf,
+        ):
+            commands_actions.cmd_update_versions(args)
+
+        mock_checksum.assert_called_once()
+        mock_input.assert_not_called()
+        saved_tools = mock_save.call_args[0][0]
+        self.assertEqual(saved_tools["dl"]["download_sha256"], "c" * 64)
+        self.assertEqual(saved_tools["dl"]["latest_version"], "1.0.0")
+        self.assertIn("Recorded download SHA256 for dl.", buf.getvalue())
+
 
 class TestUpgradeNoArgsParsing(unittest.TestCase):
     """Test that 'code-aide upgrade' with no arguments parses successfully."""

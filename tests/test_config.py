@@ -271,5 +271,46 @@ class TestMergeInstallSha256StaleCacheIgnored(unittest.TestCase):
         self.assertEqual(tools["amp"]["install_sha256"], "same_hash")
 
 
+class TestDownloadSha256Scoping(unittest.TestCase):
+    """download_sha256 from cache applies only to direct_download tools."""
+
+    def test_merge_skips_download_sha256_for_npm_tools(self):
+        tools = {
+            "gemini": {"install_type": "npm", "name": "Gemini", "command": "gemini"}
+        }
+        cache = {"tools": {"gemini": {"download_sha256": "a" * 64}}}
+        code_aide_config.merge_cached_versions(tools, cache)
+        self.assertNotIn("download_sha256", tools["gemini"])
+
+    def test_merge_applies_download_sha256_for_direct_download(self):
+        tools = {
+            "cursor": {
+                "install_type": "direct_download",
+                "name": "Cursor CLI",
+                "command": "agent",
+            }
+        }
+        cache = {"tools": {"cursor": {"download_sha256": "b" * 64}}}
+        code_aide_config.merge_cached_versions(tools, cache)
+        self.assertEqual(tools["cursor"]["download_sha256"], "b" * 64)
+
+    def test_save_omits_download_sha256_for_non_direct_tools(self):
+        tools = {
+            "gemini": {
+                "install_type": "npm",
+                "name": "Gemini",
+                "latest_version": "1.0.0",
+                "download_sha256": "should_not_persist",
+            }
+        }
+        with tempfile.TemporaryDirectory() as td:
+            with mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": td}):
+                code_aide_config.save_updated_versions(tools)
+                loaded = code_aide_config.load_versions_cache()
+        entry = loaded["tools"]["gemini"]
+        self.assertEqual(entry["latest_version"], "1.0.0")
+        self.assertNotIn("download_sha256", entry)
+
+
 if __name__ == "__main__":
     unittest.main()

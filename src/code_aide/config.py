@@ -72,7 +72,7 @@ def save_versions_cache(data: dict) -> None:
 # Cache is considered stale after 24 hours.
 CACHE_MAX_AGE_SECONDS = 86400
 
-DYNAMIC_FIELDS = ["latest_version", "latest_date", "install_sha256"]
+DYNAMIC_FIELDS = ["latest_version", "latest_date", "install_sha256", "download_sha256"]
 
 
 def merge_cached_versions(tools: dict, cache: dict) -> None:
@@ -87,11 +87,11 @@ def merge_cached_versions(tools: dict, cache: dict) -> None:
         if tool_key in cached_tools:
             for field in DYNAMIC_FIELDS:
                 if field in cached_tools[tool_key]:
+                    install_type = parse_install_type(tool_data.get("install_type"))
                     if field == "install_sha256":
-                        install_type = parse_install_type(tool_data.get("install_type"))
                         if install_type == InstallType.DIRECT_DOWNLOAD:
-                            # Script checksum does not apply to tarball installs;
-                            # ignore stale cache from older releases.
+                            # Script checksum does not apply to tarball
+                            # installs; ignore stale cache from older releases.
                             continue
                         bundled_sha = tool_data.get("install_sha256")
                         cached_sha = cached_tools[tool_key][field]
@@ -99,6 +99,11 @@ def merge_cached_versions(tools: dict, cache: dict) -> None:
                             # Bundled hash was updated in a newer release;
                             # discard stale cached hash.
                             continue
+                    if field == "download_sha256" and install_type != (
+                        InstallType.DIRECT_DOWNLOAD
+                    ):
+                        # Tarball checksum applies only to direct downloads.
+                        continue
                     tool_data[field] = cached_tools[tool_key][field]
 
 
@@ -150,6 +155,12 @@ def save_updated_versions(tools: Mapping[str, Dict[str, Any]]) -> None:
                     field == "install_sha256"
                     and parse_install_type(tool_data.get("install_type"))
                     == InstallType.DIRECT_DOWNLOAD
+                ):
+                    continue
+                if (
+                    field == "download_sha256"
+                    and parse_install_type(tool_data.get("install_type"))
+                    != InstallType.DIRECT_DOWNLOAD
                 ):
                     continue
                 entry[field] = tool_data[field]

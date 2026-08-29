@@ -389,3 +389,99 @@ class TestInstallTool(unittest.TestCase):
             False,
             env=env,
         )
+
+
+class TestFetchDownloadChecksum(unittest.TestCase):
+    """Tests for fetch_download_checksum."""
+
+    @mock.patch.object(cli_install, "detect_os_arch", return_value=("linux", "x64"))
+    @mock.patch.object(cli_install, "fetch_url")
+    def test_returns_sha256_of_downloaded_tarball(self, mock_fetch, mock_os_arch):
+        mock_fetch.return_value = (b"tarball-bytes", None)
+        checksum = cli_install.fetch_download_checksum(
+            {
+                "latest_version": "1.2.3",
+                "download_url_template": (
+                    "https://example.com/{version}/{os}/{arch}/pkg.tar.gz"
+                ),
+            }
+        )
+        self.assertEqual(
+            checksum, cli_install.hashlib.sha256(b"tarball-bytes").hexdigest()
+        )
+        url = mock_fetch.call_args[0][0]
+        self.assertEqual(url, "https://example.com/1.2.3/linux/x64/pkg.tar.gz")
+
+    @mock.patch.object(cli_install, "fetch_url")
+    def test_returns_none_without_latest_version(self, mock_fetch):
+        config = {"download_url_template": "https://example.com/{version}"}
+        self.assertIsNone(cli_install.fetch_download_checksum(config))
+        mock_fetch.assert_not_called()
+
+    @mock.patch.object(cli_install, "detect_os_arch", return_value=("linux", "x64"))
+    @mock.patch.object(cli_install, "fetch_url", side_effect=OSError("boom"))
+    def test_returns_none_on_fetch_failure(self, mock_fetch, mock_os_arch):
+        config = {
+            "latest_version": "1.0",
+            "download_url_template": "https://example.com/{version}/{os}/{arch}",
+        }
+        self.assertIsNone(cli_install.fetch_download_checksum(config))
+
+
+class TestDownloadChecksumVerification(unittest.TestCase):
+    """Tests for tarball SHA256 verification in install_direct_download."""
+
+    def _make_tarball(self):
+        buf = io.BytesIO()
+        with tarfile.open(fileobj=buf, mode="w:gz") as tf:
+            payload = b"#!/bin/sh\necho ok\n"
+            info = tarfile.TarInfo("pkg/test-bin")
+            info.size = len(payload)
+            tf.addfile(info, io.BytesIO(payload))
+        return buf.getvalue()
+
+    def _tool_config(self, td, download_sha256=None):
+        config = {
+            "name": "Test Tool",
+            "latest_version": "1.0.0",
+            "install_url": "https://example.com/install",
+            "download_url_template": (
+                "https://example.com/{version}/{os}/{arch}/pkg.tar.gz"
+            ),
+            "install_dir": os.path.join(td, "pkg-{version}"),
+            "bin_dir": os.path.join(td, "bin"),
+            "symlinks": {"test-bin": "test-bin"},
+        }
+        if download_sha256:
+            config["download_sha256"] = download_sha256
+        return config
+
+    @mock.patch.object(cli_install, "detect_os_arch", return_value=("linux", "x64"))
+    @mock.patch.object(cli_install, "fetch_url")
+    def test_matching_checksum_installs(self, mock_fetch, mock_os_arch):
+        tarball = self._make_tarball()
+        mock_fetch.return_value = (tarball, None)
+        with tempfile.TemporaryDirectory() as td:
+            config = self._tool_config(
+                td, cli_install.hashlib.sha256(tarball).hexdigest()
+            )
+            self.assertTrue(cli_install.install_direct_download("test", config))
+            self.assertTrue(os.path.exists(os.path.join(td, "pkg-1.0.0")))
+
+    @mock.patch.object(cli_install, "detect_os_arch", return_value=("linux", "x64"))
+    @mock.patch.object(cli_install, "fetch_url")
+    def test_mismatched_checksum_fails_without_install(self, mock_fetch, mock_os_arch):
+        mock_fetch.return_value = (self._make_tarball(), None)
+        with tempfile.TemporaryDirectory() as td:
+            config = self._tool_config(td, "0" * 64)
+            self.assertFalse(cli_install.install_direct_download("test", config))
+            self.assertFalse(os.path.exists(os.path.join(td, "pkg-1.0.0")))
+
+    @mock.patch.object(cli_install, "detect_os_arch", return_value=("linux", "x64"))
+    @mock.patch.object(cli_install, "fetch_url")
+    def test_missing_checksum_warns_and_installs(self, mock_fetch, mock_os_arch):
+        mock_fetch.return_value = (self._make_tarball(), None)
+        with tempfile.TemporaryDirectory() as td:
+            config = self._tool_config(td)
+            self.assertTrue(cli_install.install_direct_download("test", config))
+            self.assertTrue(os.path.exists(os.path.join(td, "pkg-1.0.0")))
