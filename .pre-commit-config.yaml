@@ -36,3 +36,11 @@ repos:
     rev: 0.10.6
     hooks:
       - id: uv-lock
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: uv run mypy
+        language: system
+        pass_filenames: false
+        files: ^src/code_aide/.*\.py$
