@@ -9,6 +9,7 @@ import importlib.resources
 import json
 import logging
 import os
+import tempfile
 import time
 from typing import Any, Dict, Mapping
 
@@ -62,11 +63,27 @@ def load_versions_cache() -> dict:
 
 
 def save_versions_cache(data: dict) -> None:
-    """Write version data to the user's cache file."""
+    """Write version data to the user's cache file atomically.
+
+    Writes to a temp file in the cache directory and renames it over
+    the destination so a crash mid-write cannot leave a truncated or
+    partially written versions.json behind.
+    """
     cache_path = get_versions_cache_path()
-    with open(cache_path, "w") as f:
-        json.dump(data, f, indent=2)
-        f.write("\n")
+    cache_dir = os.path.dirname(cache_path)
+    os.makedirs(cache_dir, exist_ok=True)
+    fd, temp_path = tempfile.mkstemp(dir=cache_dir, prefix="versions.json.")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+            f.write("\n")
+        os.replace(temp_path, cache_path)
+    except BaseException:
+        try:
+            os.unlink(temp_path)
+        except OSError:
+            pass
+        raise
 
 
 # Cache is considered stale after 24 hours.

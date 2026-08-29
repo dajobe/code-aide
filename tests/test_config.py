@@ -1,5 +1,6 @@
 """Unit tests for config module."""
 
+import json
 import os
 import tempfile
 import unittest
@@ -144,6 +145,17 @@ class TestVersionsCacheRoundTrip(unittest.TestCase):
                     f.write("{invalid")
                 loaded = code_aide_config.load_versions_cache()
                 self.assertEqual(loaded, {})
+
+    def test_save_creates_directory_and_leaves_no_temp_files(self):
+        with tempfile.TemporaryDirectory() as td:
+            with mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": td}):
+                code_aide_config.save_versions_cache({"tools": {}})
+                cache_dir = os.path.join(td, "code-aide")
+                cache_path = os.path.join(cache_dir, "versions.json")
+                self.assertTrue(os.path.isfile(cache_path))
+                with open(cache_path, encoding="utf-8") as f:
+                    self.assertEqual(json.load(f), {"tools": {}})
+                self.assertEqual(os.listdir(cache_dir), ["versions.json"])
 
 
 class TestMergeCachedOverBundled(unittest.TestCase):
