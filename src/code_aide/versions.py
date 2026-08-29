@@ -3,6 +3,7 @@
 import email.utils
 import hashlib
 import json
+import logging
 import platform
 import re
 import urllib.request
@@ -12,6 +13,8 @@ from typing import Any, Dict, List, Optional
 from code_aide import __version__
 from code_aide.constants import Colors
 from code_aide.install_types import InstallType, parse_install_type
+
+_logger = logging.getLogger(__name__)
 
 
 def fetch_url(url: str, timeout: int = 30) -> tuple[bytes, Optional[str]]:
@@ -230,15 +233,21 @@ def extract_script_version(
 
     text = script_content.decode("utf-8", errors="replace")
 
-    if tool_name == "cursor":
-        # Cursor versions are date-stamped with one or more hyphen-separated
-        # segments: historically YYYY.MM.DD-<githash>, now extended with a
-        # build time, e.g. 2026.06.12-19-59-36-f6aba9a. Capture every segment
-        # so the download URL path matches; stopping at the first segment
-        # yields a nonexistent build (HTTP 403).
-        match = re.search(r"(\d{4}\.\d{2}\.\d{2}(?:-[0-9a-f]+)+)", text)
+    version_pattern = tool_config.get("version_extract_pattern")
+    if version_pattern:
+        # Tool-specific pattern from tools.json, used where generic
+        # VERSION= extraction would stop at the wrong segment.
+        try:
+            match = re.search(version_pattern, text)
+        except re.error:
+            _logger.debug(
+                "Invalid version_extract_pattern for %s; falling back to "
+                "generic extraction",
+                tool_name,
+            )
+            match = None
         if match:
-            return match.group(1)
+            return match.group(1) if match.groups() else match.group(0)
 
     for pattern in [
         r'VERSION="([^"]+)"',

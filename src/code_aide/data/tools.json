@@ -10,6 +10,8 @@
       "install_type": "direct_download",
       "install_url": "https://cursor.com/install",
       "install_script_note": "Legacy install script archived but no longer used; switched to direct_download which extracts the binary directly without a shell script",
+      "version_extract_pattern": "\\d{4}\\.\\d{2}\\.\\d{2}(?:-[0-9a-f]+)+",
+      "version_extract_note": "Version is date-stamped with one or more hyphen-separated segments (build time included); capturing every segment keeps the download URL path valid",
       "download_url_template": "https://downloads.cursor.com/lab/{version}/{os}/{arch}/agent-cli-package.tar.gz",
       "install_dir": "~/.local/share/cursor-agent/versions/{version}",
       "bin_dir": "~/.local/bin",

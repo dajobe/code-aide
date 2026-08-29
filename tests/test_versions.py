@@ -3,6 +3,7 @@
 import unittest
 from unittest import mock
 
+from code_aide import config as code_aide_config
 from code_aide import versions as cli_versions
 
 
@@ -312,10 +313,12 @@ class TestExtractScriptDate(unittest.TestCase):
 class TestExtractScriptVersion(unittest.TestCase):
     """Tests for extract_script_version (cursor version parsing)."""
 
+    _CURSOR_CONFIG = {"version_extract_pattern": r"\d{4}\.\d{2}\.\d{2}(?:-[0-9a-f]+)+"}
+
     def test_cursor_legacy_date_hash_format(self):
         script = b'DOWNLOAD_URL="https://downloads.cursor.com/lab/2026.03.20-44cb435/${OS}/${ARCH}/agent-cli-package.tar.gz"'
         self.assertEqual(
-            cli_versions.extract_script_version("cursor", {}, script),
+            cli_versions.extract_script_version("cursor", self._CURSOR_CONFIG, script),
             "2026.03.20-44cb435",
         )
 
@@ -324,13 +327,38 @@ class TestExtractScriptVersion(unittest.TestCase):
         # string must be captured or the download URL path 403s.
         script = b'DOWNLOAD_URL="https://downloads.cursor.com/lab/2026.06.12-19-59-36-f6aba9a/${OS}/${ARCH}/agent-cli-package.tar.gz"'
         self.assertEqual(
-            cli_versions.extract_script_version("cursor", {}, script),
+            cli_versions.extract_script_version("cursor", self._CURSOR_CONFIG, script),
             "2026.06.12-19-59-36-f6aba9a",
         )
 
     def test_cursor_no_version_returns_none(self):
         self.assertIsNone(
-            cli_versions.extract_script_version("cursor", {}, b"echo hello")
+            cli_versions.extract_script_version(
+                "cursor", self._CURSOR_CONFIG, b"echo hello"
+            )
+        )
+
+    def test_bundled_cursor_pattern_comes_from_config(self):
+        bundled = code_aide_config.load_bundled_tools()["tools"]["cursor"]
+        script = b'VERSION="9.9.9"\nDOWNLOAD_URL="https://downloads.cursor.com/lab/2026.06.12-19-59-36-f6aba9a/x"'
+        self.assertEqual(
+            cli_versions.extract_script_version("cursor", bundled, script),
+            "2026.06.12-19-59-36-f6aba9a",
+        )
+
+    def test_invalid_pattern_falls_back_to_generic_extraction(self):
+        config = {"version_extract_pattern": "([unclosed"}
+        script = b'VERSION="1.2.3"\n'
+        self.assertEqual(
+            cli_versions.extract_script_version("tool", config, script),
+            "1.2.3",
+        )
+
+    def test_non_capturing_pattern_returns_whole_match(self):
+        config = {"version_extract_pattern": r"\d+\.\d+\.\d+"}
+        self.assertEqual(
+            cli_versions.extract_script_version("tool", config, b"version 1.2.3 here"),
+            "1.2.3",
         )
 
     def test_skips_shell_variable_placeholder(self):
