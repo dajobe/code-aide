@@ -75,7 +75,7 @@ def cmd_install(args: argparse.Namespace) -> None:
         )
 
     installed = []
-    installed_bin_dirs = []
+    installed_bin_dirs: List[str] = []
     failed = []
 
     for tool in tools_to_install:

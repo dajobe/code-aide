@@ -360,7 +360,7 @@ def install_tool(
 
         if install_type == InstallType.NPM:
             npm_package = tool_config["npm_package"]
-            bin_dirs = ()
+            bin_dirs: tuple[str, ...] = ()
             if dryrun:
                 info(f"[DRYRUN] Would install npm package: {npm_package}")
             else:
