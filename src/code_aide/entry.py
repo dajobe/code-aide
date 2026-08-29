@@ -98,6 +98,18 @@ def main() -> None:
         nargs="*",
         help="Tools to remove (default: all)",
     )
+    remove_parser.add_argument(
+        "-n",
+        "--dryrun",
+        action="store_true",
+        help="Show what would be removed without removing",
+    )
+    remove_parser.add_argument(
+        "-y",
+        "--yes",
+        action="store_true",
+        help="Do not prompt for confirmation",
+    )
     remove_parser.set_defaults(func=cmd_remove)
 
     update_versions_parser = subparsers.add_parser(

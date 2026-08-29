@@ -343,3 +343,123 @@ class TestCmdUpgrade(unittest.TestCase):
         output = buf.getvalue()
         self.assertIn("All installed tools are up to date", output)
         mock_upgrade.assert_not_called()
+
+
+class TestCmdRemove(unittest.TestCase):
+    """Tests for cmd_remove confirmation and dry-run behavior."""
+
+    @staticmethod
+    def _args(**overrides):
+        defaults = {"tools": [], "dryrun": False, "yes": False}
+        defaults.update(overrides)
+        return type("Args", (), defaults)()
+
+    def test_remove_all_prompts_and_aborts_on_eof(self):
+        args = self._args()
+        with (
+            mock.patch.dict(constants._TOOLS_DATA, {}, clear=True),
+            mock.patch.object(commands_actions, "remove_tool") as mock_remove,
+            mock.patch.object(
+                commands_actions, "is_tool_installed", return_value=False
+            ),
+            mock.patch("builtins.input", side_effect=EOFError),
+            contextlib.redirect_stdout(io.StringIO()) as buf,
+        ):
+            commands_actions.cmd_remove(args)
+
+        self.assertIn("Aborted.", buf.getvalue())
+        mock_remove.assert_not_called()
+
+    def test_remove_all_declined_makes_no_changes(self):
+        tools = {"a": {"name": "A", "command": "a"}}
+        args = self._args()
+        with (
+            mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
+            mock.patch.object(commands_actions, "remove_tool") as mock_remove,
+            mock.patch.object(commands_actions, "is_tool_installed", return_value=True),
+            mock.patch("builtins.input", return_value="n"),
+            contextlib.redirect_stdout(io.StringIO()) as buf,
+        ):
+            commands_actions.cmd_remove(args)
+
+        mock_remove.assert_not_called()
+        self.assertIn("Aborted.", buf.getvalue())
+
+    def test_remove_all_confirmed_removes_all(self):
+        tools = {
+            "a": {"name": "A", "command": "a"},
+            "b": {"name": "B", "command": "b"},
+        }
+        args = self._args()
+        with (
+            mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
+            mock.patch.object(
+                commands_actions, "remove_tool", return_value=True
+            ) as mock_remove,
+            mock.patch.object(commands_actions, "is_tool_installed", return_value=True),
+            mock.patch("builtins.input", return_value="y"),
+            contextlib.redirect_stdout(io.StringIO()) as buf,
+        ):
+            commands_actions.cmd_remove(args)
+
+        self.assertEqual(mock_remove.call_count, 2)
+        self.assertIn("Successfully removed: a, b", buf.getvalue())
+
+    def test_remove_all_with_yes_skips_prompt(self):
+        tools = {"a": {"name": "A", "command": "a"}}
+        args = self._args(yes=True)
+        with (
+            mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
+            mock.patch.object(
+                commands_actions, "remove_tool", return_value=True
+            ) as mock_remove,
+            mock.patch.object(commands_actions, "is_tool_installed", return_value=True),
+            mock.patch("builtins.input") as mock_input,
+            contextlib.redirect_stdout(io.StringIO()) as buf,
+        ):
+            commands_actions.cmd_remove(args)
+
+        mock_input.assert_not_called()
+        mock_remove.assert_called_once_with("a")
+        self.assertIn("Successfully removed: a", buf.getvalue())
+
+    def test_dryrun_lists_without_removing(self):
+        tools = {
+            "a": {"name": "A", "command": "a"},
+            "b": {"name": "B", "command": "b"},
+        }
+        args = self._args(dryrun=True)
+        with (
+            mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
+            mock.patch.object(commands_actions, "remove_tool") as mock_remove,
+            mock.patch.object(
+                commands_actions, "is_tool_installed", side_effect=[True, False]
+            ),
+            mock.patch("builtins.input") as mock_input,
+            contextlib.redirect_stdout(io.StringIO()) as buf,
+        ):
+            commands_actions.cmd_remove(args)
+
+        mock_remove.assert_not_called()
+        mock_input.assert_not_called()
+        output = buf.getvalue()
+        self.assertIn("Would remove: a", output)
+        self.assertIn("Not installed (skipped): b", output)
+        self.assertIn("Dry run completed without removing anything!", output)
+
+    def test_named_tools_skip_confirmation(self):
+        tools = {"a": {"name": "A", "command": "a"}}
+        args = self._args(tools=["a"])
+        with (
+            mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
+            mock.patch.object(
+                commands_actions, "remove_tool", return_value=True
+            ) as mock_remove,
+            mock.patch.object(commands_actions, "is_tool_installed", return_value=True),
+            mock.patch("builtins.input") as mock_input,
+            contextlib.redirect_stdout(io.StringIO()),
+        ):
+            commands_actions.cmd_remove(args)
+
+        mock_input.assert_not_called()
+        mock_remove.assert_called_once_with("a")

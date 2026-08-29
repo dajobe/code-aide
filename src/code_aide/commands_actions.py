@@ -198,14 +198,37 @@ def cmd_upgrade(args: argparse.Namespace) -> None:
         )
 
 
+def _confirm_remove_all(tools: List[str]) -> bool:
+    """Prompt before removing every managed tool."""
+    print(f"This will remove {len(tools)} managed tools: {', '.join(tools)}")
+    try:
+        answer = input("Remove all of them? [y/N] ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return False
+    return answer in ("y", "yes")
+
+
 def cmd_remove(args: argparse.Namespace) -> None:
     """Handle remove command."""
+    dryrun = getattr(args, "dryrun", False)
+    assume_yes = getattr(args, "yes", False)
+
     if args.tools:
         tools_to_remove = args.tools
         info(f"Removing specified tools: {', '.join(tools_to_remove)}")
     else:
         tools_to_remove = list(TOOLS.keys())
-        info(f"No tools specified, removing all: {', '.join(tools_to_remove)}")
+        if dryrun:
+            info(
+                "[DRYRUN] Would remove all managed tools: "
+                f"{', '.join(tools_to_remove)}"
+            )
+        else:
+            info(f"No tools specified, removing all: {', '.join(tools_to_remove)}")
+            if not assume_yes and not _confirm_remove_all(tools_to_remove):
+                print("Aborted.")
+                return
 
     tools_to_remove = resolve_tool_names(tools_to_remove, TOOLS)
     validate_tools(tools_to_remove)
@@ -216,6 +239,14 @@ def cmd_remove(args: argparse.Namespace) -> None:
 
     for tool in tools_to_remove:
         print()
+        if dryrun:
+            info(f"=== Checking {tool} ===")
+            if is_tool_installed(tool):
+                removed.append(tool)
+            else:
+                skipped.append(tool)
+            continue
+
         info(f"=== Removing {tool} ===")
 
         if not is_tool_installed(tool):
@@ -229,8 +260,19 @@ def cmd_remove(args: argparse.Namespace) -> None:
 
     print()
     print("=" * 42)
-    info("Removal Summary")
+    if dryrun:
+        info("Removal Summary (dry run)")
+    else:
+        info("Removal Summary")
     print("=" * 42)
+    if dryrun:
+        if removed:
+            success(f"Would remove: {', '.join(removed)}")
+        if skipped:
+            warning(f"Not installed (skipped): {', '.join(skipped)}")
+        print()
+        success("Dry run completed without removing anything!")
+        return
 
     if removed:
         success(f"Successfully removed: {', '.join(removed)}")
