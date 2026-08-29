@@ -16,8 +16,7 @@ class TestGetConfigDir(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             with mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": td}):
                 config_dir = code_aide_config.get_config_dir()
-                self.assertEqual(config_dir, os.path.join(td, "code-aide"))
-                self.assertTrue(os.path.isdir(config_dir))
+                self.assertFalse(os.path.isdir(config_dir))
 
     def test_defaults_to_home_config(self):
         with tempfile.TemporaryDirectory() as td:

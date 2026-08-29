@@ -10,7 +10,7 @@ the proxy.
 import os
 import sys
 from types import MappingProxyType
-from typing import Any, Dict, Mapping
+from typing import Any, Dict, Mapping, Optional
 
 from code_aide.config import load_tools_config
 
@@ -39,21 +39,38 @@ def _use_color() -> bool:
     return sys.stdout.isatty()
 
 
-class Colors:
-    if _use_color():
-        RED = "\033[0;31m"
-        GREEN = "\033[0;32m"
-        YELLOW = "\033[1;33m"
-        BLUE = "\033[0;34m"
-        BOLD = "\033[1m"
-        NC = "\033[0m"
-    else:
-        RED = ""
-        GREEN = ""
-        YELLOW = ""
-        BLUE = ""
-        BOLD = ""
-        NC = ""
+_COLOR_CODES: Dict[str, str] = {
+    "RED": "\033[0;31m",
+    "GREEN": "\033[0;32m",
+    "YELLOW": "\033[1;33m",
+    "BLUE": "\033[0;34m",
+    "BOLD": "\033[1m",
+    "NC": "\033[0m",
+}
+
+# Resolved once, on first Colors attribute access, so environment
+# variables (NO_COLOR, FORCE_COLOR, ...) set after import still apply.
+_color_state: Dict[str, Optional[bool]] = {"enabled": None}
+
+
+class _ColorsMeta(type):
+    """Metaclass giving Colors lazy class-level attributes."""
+
+    def _colors_enabled(cls) -> bool:
+        enabled = _color_state["enabled"]
+        if enabled is None:
+            enabled = _use_color()
+            _color_state["enabled"] = enabled
+        return enabled
+
+    def __getattr__(cls, name: str) -> str:
+        if name in _COLOR_CODES:
+            return _COLOR_CODES[name] if cls._colors_enabled() else ""
+        raise AttributeError(name)
+
+
+class Colors(metaclass=_ColorsMeta):
+    """ANSI color codes resolved on first attribute access."""
 
 
 _TOOLS_DATA: Dict[str, Dict[str, Any]] = load_tools_config()

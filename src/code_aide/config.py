@@ -22,12 +22,10 @@ def get_config_dir() -> str:
     """Return XDG config directory for code-aide.
 
     Uses $XDG_CONFIG_HOME/code-aide if set, else ~/.config/code-aide.
-    Creates the directory if it doesn't exist.
+    Does not create the directory; writers do that themselves.
     """
     xdg = os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
-    config_dir = os.path.join(xdg, "code-aide")
-    os.makedirs(config_dir, exist_ok=True)
-    return config_dir
+    return os.path.join(xdg, "code-aide")
 
 
 def get_versions_cache_path() -> str:
