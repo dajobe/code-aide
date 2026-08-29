@@ -173,6 +173,35 @@ class TestCheckPrerequisites(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 cli_prereqs.check_prerequisites(["test"], install_prereqs=False)
 
+    def test_npm_version_probe_missing_binary_exits_cleanly(self):
+        tool_config = {"name": "Test", "command": "test", "prerequisites": ["npm"]}
+        with (
+            mock.patch.object(cli_prereqs.platform, "system", return_value="Linux"),
+            mock.patch.dict(constants._TOOLS_DATA, {"test": tool_config}, clear=True),
+            mock.patch.object(cli_prereqs, "command_exists", return_value=True),
+            mock.patch.object(
+                cli_prereqs, "run_command", side_effect=FileNotFoundError("npm")
+            ),
+        ):
+            with self.assertRaises(SystemExit):
+                cli_prereqs.check_prerequisites(["test"], install_prereqs=False)
+
+    def test_node_missing_binary_exits_cleanly(self):
+        tool_config = {
+            "name": "Test",
+            "command": "test",
+            "min_node_version": 20,
+        }
+        with (
+            mock.patch.object(cli_prereqs.platform, "system", return_value="Linux"),
+            mock.patch.dict(constants._TOOLS_DATA, {"test": tool_config}, clear=True),
+            mock.patch.object(
+                cli_prereqs, "run_command", side_effect=FileNotFoundError("node")
+            ),
+        ):
+            with self.assertRaises(SystemExit):
+                cli_prereqs.check_prerequisites(["test"], install_prereqs=False)
+
     def test_unknown_tool_skipped(self):
         with (
             mock.patch.object(cli_prereqs.platform, "system", return_value="Linux"),

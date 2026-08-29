@@ -105,7 +105,7 @@ def check_prerequisites(
         try:
             npm_version = run_command(["npm", "--version"]).stdout.strip()
             info(f"Prerequisites check passed (npm found: {npm_version})")
-        except subprocess.CalledProcessError:
+        except (subprocess.CalledProcessError, OSError):
             error("Failed to check npm version")
             sys.exit(1)
 
@@ -136,7 +136,7 @@ def check_prerequisites(
                     error(f"Current version: {node_version_output}")
                     error("Please upgrade Node.js: https://nodejs.org/")
                     sys.exit(1)
-        except (subprocess.CalledProcessError, ValueError, IndexError) as exc:
+        except (subprocess.CalledProcessError, OSError, ValueError, IndexError) as exc:
             error(f"Failed to check Node.js version: {exc}")
             sys.exit(1)
 
