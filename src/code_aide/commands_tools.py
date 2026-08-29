@@ -30,6 +30,7 @@ from code_aide.status import (
     print_brew_version_status,
     print_pkg_version_status,
     print_system_version_status,
+    ToolUpgradeAssessment,
     ToolUpgradeEvaluator,
     UpgradeDecision,
     VersionDisplayState,
@@ -161,6 +162,51 @@ def _generic_version_annotation(
     )
 
 
+def _print_version_status(
+    assessment: ToolUpgradeAssessment,
+    status_version: str,
+    tool_path: str | None,
+    tool_config: dict,
+) -> None:
+    """Print the long-form version line for one installed tool."""
+    package_info = assessment.package_info
+    if assessment.install_method == InstallMethod.SYSTEM and tool_path and package_info:
+        print_system_version_status(
+            status_version, assessment.latest_version, package_info
+        )
+        return
+
+    if assessment.install_method == InstallMethod.PKG:
+        if package_info and package_info.get("available_version"):
+            print_pkg_version_status(
+                status_version,
+                assessment.latest_version,
+                package_info,
+                repo=tool_config.get("freebsd_pkg_repo"),
+            )
+            return
+    elif assessment.install_method in (
+        InstallMethod.BREW_FORMULA,
+        InstallMethod.BREW_CASK,
+    ):
+        if package_info and package_info.get("available_version"):
+            print_brew_version_status(
+                status_version, assessment.latest_version, package_info
+            )
+            return
+
+    if (
+        assessment.latest_version
+        and assessment.version_state == VersionDisplayState.UP_TO_DATE
+    ):
+        print(
+            f"  Version:      {status_version} "
+            f"{Colors.GREEN}(up to date){Colors.NC}"
+        )
+    else:
+        print(_generic_version_annotation(status_version, assessment.latest_version))
+
+
 def cmd_status_compact() -> None:
     """Show compact one-line-per-tool status."""
     ensure_versions_cache(TOOLS)
@@ -242,80 +288,9 @@ def cmd_status(args: argparse.Namespace) -> None:
             print(f"  Status:       {Colors.GREEN}✓ Installed{Colors.NC}")
 
             if status["version"]:
-                if (
-                    assessment.install_method == InstallMethod.SYSTEM
-                    and tool_path
-                    and assessment.package_info
-                ):
-                    print_system_version_status(
-                        status["version"],
-                        assessment.latest_version,
-                        assessment.package_info,
-                    )
-                elif assessment.install_method == InstallMethod.PKG:
-                    if assessment.package_info and assessment.package_info.get(
-                        "available_version"
-                    ):
-                        print_pkg_version_status(
-                            status["version"],
-                            assessment.latest_version,
-                            assessment.package_info,
-                            repo=tool_config.get("freebsd_pkg_repo"),
-                        )
-                    elif assessment.latest_version:
-                        if assessment.version_state == VersionDisplayState.UP_TO_DATE:
-                            print(
-                                f"  Version:      {status['version']} "
-                                f"{Colors.GREEN}(up to date){Colors.NC}"
-                            )
-                        else:
-                            print(
-                                _generic_version_annotation(
-                                    status["version"], assessment.latest_version
-                                )
-                            )
-                    else:
-                        print(f"  Version:      {status['version']}")
-                elif assessment.install_method in (
-                    InstallMethod.BREW_FORMULA,
-                    InstallMethod.BREW_CASK,
-                ):
-                    if assessment.package_info and assessment.package_info.get(
-                        "available_version"
-                    ):
-                        print_brew_version_status(
-                            status["version"],
-                            assessment.latest_version,
-                            assessment.package_info,
-                        )
-                    elif assessment.latest_version:
-                        if assessment.version_state == VersionDisplayState.UP_TO_DATE:
-                            print(
-                                f"  Version:      {status['version']} "
-                                f"{Colors.GREEN}(up to date){Colors.NC}"
-                            )
-                        else:
-                            print(
-                                _generic_version_annotation(
-                                    status["version"], assessment.latest_version
-                                )
-                            )
-                    else:
-                        print(f"  Version:      {status['version']}")
-                elif assessment.latest_version:
-                    if assessment.version_state == VersionDisplayState.UP_TO_DATE:
-                        print(
-                            f"  Version:      {status['version']} "
-                            f"{Colors.GREEN}(up to date){Colors.NC}"
-                        )
-                    else:
-                        print(
-                            _generic_version_annotation(
-                                status["version"], assessment.latest_version
-                            )
-                        )
-                else:
-                    print(f"  Version:      {status['version']}")
+                _print_version_status(
+                    assessment, status["version"], tool_path, tool_config
+                )
 
                 if assessment.decision == UpgradeDecision.UPGRADE:
                     outdated_count += 1
