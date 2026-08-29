@@ -43,8 +43,14 @@ code-aide install -p
 # Upgrade installed tools (no args = only out-of-date tools)
 code-aide upgrade [NAMES]
 
-# Remove tools
+# Remove tools (prompts before removing all managed tools)
 code-aide remove [NAMES]
+
+# Preview a removal without changing anything
+code-aide remove -n
+
+# Remove all managed tools without prompting
+code-aide remove -y
 
 # Check upstream for latest versions (dry-run)
 code-aide update-versions -n
@@ -79,8 +85,8 @@ code-aide uses a two-layer version data model:
    versions of code-aide.
 
 2. **User's local version cache** (`~/.config/code-aide/versions.json`): Written
-   by `code-aide update-versions`. Provides latest versions, dates, and updated
-   SHA256 checksums.
+   by `code-aide update-versions`. Provides latest versions, dates, updated
+   SHA256 checksums, and recorded tarball checksums for direct_download tools.
 
 Run `code-aide update-versions` to get the latest version data without waiting
 for a new code-aide release.
@@ -91,32 +97,34 @@ Each entry in `tools.json` describes one managed tool. Required fields are
 `name`, `command`, and `install_type`; the others are optional and only
 consulted when the relevant install method or platform applies.
 
-| Field                           | Required | Notes                                                                                        |
-|:--------------------------------|:---------|:---------------------------------------------------------------------------------------------|
-| `name`                          | Yes      | Display name for status output                                                               |
-| `command`                       | Yes      | Binary name (looked up in `PATH`)                                                            |
-| `aliases`                       | No       | Alternate names accepted by commands and resolved to the canonical tool key                  |
-| `install_type`                  | Yes      | One of `npm`, `script`, `direct_download`, `pkg`                                             |
-| `version_args`                  | No       | List of arguments passed to the binary to print its version (default: `["--version"]`)       |
-| `version_url`                   | No       | URL queried by `update-versions` to discover the latest upstream version                     |
-| `version_manifest_url_template` | No       | JSON manifest URL template with `{platform}`; reads its `version` field                      |
-| `latest_version`                | Cache    | Last known upstream version (filled by `update-versions`)                                    |
-| `latest_date`                   | Cache    | Release date for `latest_version`                                                            |
-| `prerequisites`                 | No       | List of required external commands (e.g. `["npm"]`)                                          |
-| `min_node_version`              | No       | Minimum major Node.js version required                                                       |
-| `npm_package`                   | npm      | npm package name (e.g. `@anthropic-ai/claude-code`)                                          |
-| `install_url`                   | script   | URL of the install script that will be downloaded and piped to `bash`                        |
-| `install_sha256`                | script   | SHA-256 of the install script body — required for verified installs                          |
-| `install_script_path_prepend`   | script   | Extra directories prepended to `PATH` when the install script runs (e.g. `["~/.local/bin"]`) |
-| `download_url_template`         | direct   | URL template with `{version}`, `{os}`, `{arch}` placeholders                                 |
-| `install_dir`                   | direct   | Directory to extract into; supports `{version}`                                              |
-| `bin_dir`                       | direct   | Directory where symlinks for `command` are created (e.g. `~/.local/bin`)                     |
-| `symlinks`                      | direct   | Map of `link_name` → relative path inside `install_dir` to symlink into `bin_dir`            |
-| `freebsd_port`                  | FreeBSD  | FreeBSD ports/pkg name (used when running on FreeBSD)                                        |
-| `freebsd_pkg_repo`              | FreeBSD  | Optional non-default pkg repository name (passed via `pkg install -r <repo>`)                |
-| `next_steps`                    | No       | Free-form text printed after a successful install                                            |
-| `docs_url`                      | No       | Documentation URL printed after install                                                      |
-| `self_updates`                  | No       | Tool updates itself when run; excludes it from managed upgrade actions                       |
+| Field                           | Required | Notes                                                                                                           |
+|:--------------------------------|:---------|:----------------------------------------------------------------------------------------------------------------|
+| `name`                          | Yes      | Display name for status output                                                                                  |
+| `command`                       | Yes      | Binary name (looked up in `PATH`)                                                                               |
+| `aliases`                       | No       | Alternate names accepted by commands and resolved to the canonical tool key                                     |
+| `install_type`                  | Yes      | One of `npm`, `script`, `direct_download`, `pkg`                                                                |
+| `version_args`                  | No       | List of arguments passed to the binary to print its version (default: `["--version"]`)                          |
+| `version_url`                   | No       | URL queried by `update-versions` to discover the latest upstream version                                        |
+| `version_manifest_url_template` | No       | JSON manifest URL template with `{platform}`; reads its `version` field                                         |
+| `version_extract_pattern`       | No       | Regex applied to the install script to extract the version before generic heuristics                            |
+| `latest_version`                | Cache    | Last known upstream version (filled by `update-versions`)                                                       |
+| `latest_date`                   | Cache    | Release date for `latest_version`                                                                               |
+| `prerequisites`                 | No       | List of required external commands (e.g. `["npm"]`)                                                             |
+| `min_node_version`              | No       | Minimum major Node.js version required                                                                          |
+| `npm_package`                   | npm      | npm package name (e.g. `@anthropic-ai/claude-code`)                                                             |
+| `install_url`                   | script   | URL of the install script that will be downloaded and piped to `bash`                                           |
+| `install_sha256`                | script   | SHA-256 of the install script body — required for verified installs                                             |
+| `download_sha256`               | Cache    | SHA-256 of the downloaded tarball for direct_download tools; recorded by `update-versions`, verified on install |
+| `install_script_path_prepend`   | script   | Extra directories prepended to `PATH` when the install script runs (e.g. `["~/.local/bin"]`)                    |
+| `download_url_template`         | direct   | URL template with `{version}`, `{os}`, `{arch}` placeholders                                                    |
+| `install_dir`                   | direct   | Directory to extract into; supports `{version}`                                                                 |
+| `bin_dir`                       | direct   | Directory where symlinks for `command` are created (e.g. `~/.local/bin`)                                        |
+| `symlinks`                      | direct   | Map of `link_name` → relative path inside `install_dir` to symlink into `bin_dir`                               |
+| `freebsd_port`                  | FreeBSD  | FreeBSD ports/pkg name (used when running on FreeBSD)                                                           |
+| `freebsd_pkg_repo`              | FreeBSD  | Optional non-default pkg repository name (passed via `pkg install -r <repo>`)                                   |
+| `next_steps`                    | No       | Free-form text printed after a successful install                                                               |
+| `docs_url`                      | No       | Documentation URL printed after install                                                                         |
+| `self_updates`                  | No       | Tool updates itself when run; excludes it from managed upgrade actions                                          |
 
 ## Features
 
