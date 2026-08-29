@@ -14,7 +14,7 @@ from code_aide.constants import Colors
 from code_aide.install_types import InstallType, parse_install_type
 
 
-def fetch_url(url: str, timeout: int = 30) -> tuple:
+def fetch_url(url: str, timeout: int = 30) -> tuple[bytes, Optional[str]]:
     """Fetch content from a URL. Returns (bytes, last_modified_str)."""
     req = urllib.request.Request(
         url, headers={"User-Agent": f"code-aide/{__version__}"}

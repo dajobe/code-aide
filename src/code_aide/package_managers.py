@@ -150,7 +150,7 @@ def _parse_package_name(manager: PackageManager, query_output: str) -> Optional[
 
 def query_package_owner(
     binary_path: str,
-) -> tuple:
+) -> tuple[Optional[str], Optional[str]]:
     """Identify the system package that owns a binary path.
 
     Returns (package_name, remove_command_str) or (None, None).

@@ -47,9 +47,6 @@ filterwarnings = [
     "error",
     "ignore::DeprecationWarning:_pytest.*",
 ]
-markers = [
-    "network: tests that make real network calls (deselect with '-m \"not network\"')",
-]
 
 [tool.mypy]
 python_version = "3.11"

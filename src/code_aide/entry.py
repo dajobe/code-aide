@@ -33,6 +33,7 @@ def main() -> None:
     """Main function."""
     available_tools = ", ".join(TOOLS.keys())
     parser = argparse.ArgumentParser(
+        prog="code-aide",
         description="Manage AI coding CLI tools",
         epilog=f"Available tools: {available_tools}",
     )

@@ -127,9 +127,6 @@ def run_install_script(
         stderr_text = stderr.decode("utf-8", errors="replace")
         error(f"Failed to install {tool_name}: {stderr_text}")
         return False
-    except subprocess.CalledProcessError as exc:
-        error(f"Failed to download install script for {tool_name}: {exc.stderr}")
-        return False
     except Exception as exc:
         error(f"Failed to install {tool_name}: {exc}")
         return False
