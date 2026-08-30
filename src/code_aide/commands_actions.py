@@ -46,6 +46,7 @@ from code_aide.config import (
 def cmd_install(args: argparse.Namespace) -> None:
     """Handle install command."""
     dryrun = getattr(args, "dryrun", False)
+    force = getattr(args, "force", False)
 
     if args.tools:
         tools_to_install = args.tools
@@ -86,7 +87,7 @@ def cmd_install(args: argparse.Namespace) -> None:
         else:
             info(f"=== Installing {tool} ===")
 
-        outcome = install_tool(tool, dryrun=dryrun)
+        outcome = install_tool(tool, dryrun=dryrun, force=force)
         if outcome:
             installed.append(tool)
             installed_bin_dirs.extend(outcome.bin_dirs)

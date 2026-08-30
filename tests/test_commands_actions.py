@@ -48,8 +48,73 @@ class TestCmdInstall(unittest.TestCase):
             with contextlib.redirect_stdout(buf):
                 commands_actions.cmd_install(args)
 
-        mock_install_tool.assert_called_once_with("default_tool", dryrun=True)
+        mock_install_tool.assert_called_once_with(
+            "default_tool", dryrun=True, force=False
+        )
         mock_prereqs.assert_not_called()
+
+    def test_passes_force_flag_to_install_tool(self):
+        tools = {
+            "test": {
+                "name": "Test Tool",
+                "command": "test",
+                "install_type": "npm",
+                "next_steps": "run test",
+            }
+        }
+        args = type(
+            "Args",
+            (),
+            {
+                "tools": ["test"],
+                "dryrun": False,
+                "install_prerequisites": False,
+                "force": True,
+            },
+        )()
+
+        with (
+            mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
+            mock.patch.object(
+                commands_actions,
+                "install_tool",
+                return_value=InstallOutcome(True),
+            ) as mock_install,
+        ):
+            commands_actions.cmd_install(args)
+
+        mock_install.assert_called_once_with("test", dryrun=False, force=True)
+
+    def test_defaults_to_force_disabled(self):
+        tools = {
+            "test": {
+                "name": "Test Tool",
+                "command": "test",
+                "install_type": "npm",
+                "next_steps": "run test",
+            }
+        }
+        args = type(
+            "Args",
+            (),
+            {
+                "tools": ["test"],
+                "dryrun": False,
+                "install_prerequisites": False,
+            },
+        )()
+
+        with (
+            mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
+            mock.patch.object(
+                commands_actions,
+                "install_tool",
+                return_value=InstallOutcome(True),
+            ) as mock_install,
+        ):
+            commands_actions.cmd_install(args)
+
+        mock_install.assert_called_once_with("test", dryrun=False, force=False)
 
     def test_checks_bin_directories_reported_by_installers(self):
         tools = {
@@ -111,7 +176,7 @@ class TestCmdInstall(unittest.TestCase):
         ):
             commands_actions.cmd_install(args)
 
-        mock_install.assert_called_once_with("antigravity", dryrun=False)
+        mock_install.assert_called_once_with("antigravity", dryrun=False, force=False)
 
 
 class TestCmdUpdateVersions(unittest.TestCase):

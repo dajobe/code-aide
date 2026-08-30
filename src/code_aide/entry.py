@@ -83,6 +83,12 @@ def main() -> None:
         action="store_true",
         help="Verify SHA256 checksums without installing (dry run mode)",
     )
+    install_parser.add_argument(
+        "-f",
+        "--force",
+        action="store_true",
+        help="Reinstall even if the command already exists in PATH",
+    )
     install_parser.set_defaults(func=cmd_install)
 
     upgrade_parser = subparsers.add_parser("upgrade", help="Upgrade tools")
