@@ -420,3 +420,54 @@ class TestExtractScriptVersion(unittest.TestCase):
         )
 
         self.assertEqual(result, "1.0.0")
+
+
+class TestFetchUrl(unittest.TestCase):
+    """Tests for fetch_url network fetch behavior."""
+
+    @staticmethod
+    def _response(content=b"payload", last_modified="Tue, 25 Aug 2026 10:00:00 GMT"):
+        response = mock.Mock()
+        response.read.return_value = content
+        response.headers = {"Last-Modified": last_modified}
+        response.__enter__ = mock.Mock(return_value=response)
+        response.__exit__ = mock.Mock(return_value=False)
+        return response
+
+    def test_returns_content_and_last_modified(self):
+        with mock.patch.object(
+            cli_versions.urllib.request,
+            "urlopen",
+            return_value=self._response(content=b"abc"),
+        ) as mock_urlopen:
+            content, last_modified = cli_versions.fetch_url("https://example.com/x")
+        self.assertEqual(content, b"abc")
+        self.assertEqual(last_modified, "Tue, 25 Aug 2026 10:00:00 GMT")
+        request = mock_urlopen.call_args[0][0]
+        self.assertEqual(request.full_url, "https://example.com/x")
+        self.assertEqual(mock_urlopen.call_args[1]["timeout"], 30)
+
+    def test_sends_code_aide_user_agent(self):
+        with mock.patch.object(
+            cli_versions.urllib.request, "urlopen", return_value=self._response()
+        ) as mock_urlopen:
+            cli_versions.fetch_url("https://example.com/x")
+        request = mock_urlopen.call_args[0][0]
+        self.assertIn("code-aide/", request.headers.get("User-agent", ""))
+
+    def test_last_modified_is_none_when_header_absent(self):
+        with mock.patch.object(
+            cli_versions.urllib.request,
+            "urlopen",
+            return_value=self._response(last_modified=None),
+        ):
+            content, last_modified = cli_versions.fetch_url("https://example.com/x")
+        self.assertEqual(content, b"payload")
+        self.assertIsNone(last_modified)
+
+    def test_custom_timeout_is_passed(self):
+        with mock.patch.object(
+            cli_versions.urllib.request, "urlopen", return_value=self._response()
+        ) as mock_urlopen:
+            cli_versions.fetch_url("https://example.com/x", timeout=5)
+        self.assertEqual(mock_urlopen.call_args[1]["timeout"], 5)
