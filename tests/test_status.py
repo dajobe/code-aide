@@ -1,5 +1,6 @@
 """Unit tests for status-rendering helpers."""
 
+import subprocess
 import unittest
 from unittest import mock
 
@@ -371,3 +372,48 @@ class TestToolUpgradeEvaluatorDiscovery(unittest.TestCase):
             assessment.decision, cli_status.UpgradeDecision.PACKAGE_MANAGED
         )
         mock_pkg.assert_called_once_with("/usr/bin/sys-tool")
+
+
+class TestGetToolStatus(unittest.TestCase):
+    """Tests for get_tool_status version capture."""
+
+    _TOOL_CONFIG = {"name": "Test Tool", "command": "test-tool"}
+
+    @staticmethod
+    def _completed(returncode=0, stdout="", stderr=""):
+        return subprocess.CompletedProcess(
+            ["test-tool", "--version"], returncode, stdout=stdout, stderr=stderr
+        )
+
+    def _run(self, **kwargs):
+        with (
+            mock.patch.object(cli_status, "is_tool_installed", return_value=True),
+            mock.patch.object(
+                cli_status.subprocess, "run", return_value=self._completed(**kwargs)
+            ),
+        ):
+            return cli_status.get_tool_status("test", self._TOOL_CONFIG)
+
+    def test_captures_version_from_stdout(self):
+        status = self._run(stdout="1.2.3\n")
+        self.assertEqual(status["version"], "1.2.3")
+
+    def test_captures_version_from_stderr_when_stdout_empty(self):
+        status = self._run(stdout="", stderr="2.0.0\n")
+        self.assertEqual(status["version"], "2.0.0")
+
+    def test_stdout_wins_over_stderr(self):
+        status = self._run(stdout="1.2.3\n", stderr="noise\n")
+        self.assertEqual(status["version"], "1.2.3")
+
+    def test_nonzero_exit_leaves_version_missing(self):
+        status = self._run(returncode=1, stdout="1.2.3\n")
+        self.assertIsNone(status["version"])
+
+    def test_not_installed_short_circuits(self):
+        with mock.patch.object(
+            cli_status, "is_tool_installed", return_value=False
+        ) as mock_installed:
+            status = cli_status.get_tool_status("test", self._TOOL_CONFIG)
+        mock_installed.assert_called_once_with("test")
+        self.assertIsNone(status["version"])

@@ -360,8 +360,11 @@ def get_tool_status(tool_name: str, tool_config: Dict[str, Any]) -> ToolStatus:
             check=False,
             stdin=subprocess.DEVNULL,
         )
-        if result.returncode == 0 and result.stdout.strip():
-            status_info["version"] = result.stdout.strip().split("\n")[0]
+        if result.returncode == 0:
+            # Some tools print their version to stderr; prefer stdout.
+            output = result.stdout.strip() or result.stderr.strip()
+            if output:
+                status_info["version"] = output.split("\n")[0]
     except subprocess.TimeoutExpired:
         status_info["errors"].append("Version check timed out after 10s")
     except Exception:
