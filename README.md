@@ -22,6 +22,9 @@ pipx install code-aide
 ## Usage
 
 ```bash
+# Show compact one-line-per-tool status (default when no command is given)
+code-aide
+
 # List available tools and their status
 code-aide list
 
@@ -39,6 +42,9 @@ code-aide install
 
 # Install with automatic prerequisite installation (Node.js, npm)
 code-aide install -p
+
+# Verify checksums and show what would be installed, without installing
+code-aide install -n
 
 # Upgrade installed tools (no args = only out-of-date tools)
 code-aide upgrade [NAMES]
@@ -138,6 +144,15 @@ consulted when the relevant install method or platform applies.
   download)
 - PATH configuration validation and warnings
 - Supports Linux and macOS
+
+## Configuration
+
+- Tool definitions are bundled at `src/code_aide/data/tools.json`.
+- The version cache lives at `~/.config/code-aide/versions.json` by default; set
+  `XDG_CONFIG_HOME` to relocate the `code-aide` config directory.
+- Color output honors `NO_COLOR`, `FORCE_COLOR`, `CLICOLOR_FORCE`, `CLICOLOR=0`,
+  and `TERM=dumb`, in that priority order; color is disabled when stdout is not
+  a terminal.
 
 ## Requirements
 
