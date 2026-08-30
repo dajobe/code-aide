@@ -1,10 +1,12 @@
 """Upgrade and remove operations for managed tools."""
 
+import fnmatch
 import os
+import shutil
 import subprocess
 import sys
 from enum import Enum
-from typing import Dict, List, TypedDict
+from typing import Dict, List, Optional, TypedDict
 
 from code_aide.constants import TOOLS
 from code_aide.detection import (
@@ -268,6 +270,68 @@ def remove_tool(tool_name: str) -> bool:
     except Exception as exc:
         error(f"Failed to remove {tool_config['name']}: {exc}")
         return False
+
+
+def clean_tool_versions(tool_name: str, dryrun: bool = False) -> Optional[List[str]]:
+    """Remove stale version directories for a direct-download tool.
+
+    Keeps the directory the tool's symlinks currently point at. Returns
+    the list of removed (or, with dryrun, removable) directory paths,
+    or None when the tool has no versioned install layout.
+    """
+    tool_config = TOOLS[tool_name]
+    install_dir_template = tool_config.get("install_dir", "")
+    if not install_dir_template or "{version}" not in install_dir_template:
+        return None
+
+    expanded = os.path.expanduser(install_dir_template)
+    parent = os.path.dirname(expanded)
+    if not parent or not os.path.isdir(parent):
+        info(f"No install directory for {tool_config['name']}; nothing to clean")
+        return []
+
+    # Only consider directories matching the versioned template shape.
+    pattern = os.path.basename(expanded).replace("{version}", "*")
+
+    # Never remove the version the symlinks currently point at.
+    current_dirs = set()
+    bin_dir = os.path.expanduser(tool_config.get("bin_dir", ""))
+    for link_name in tool_config.get("symlinks", {}):
+        link_path = os.path.join(bin_dir, link_name)
+        if os.path.islink(link_path):
+            current_dirs.add(os.path.dirname(os.path.realpath(link_path)))
+
+    if not current_dirs:
+        warning(
+            f"Could not determine the current version directory of "
+            f"{tool_config['name']}; not removing anything"
+        )
+        return []
+
+    stale = []
+    for entry in sorted(os.listdir(parent)):
+        full = os.path.join(parent, entry)
+        if not os.path.isdir(full) or os.path.islink(full):
+            continue
+        if not fnmatch.fnmatch(entry, pattern):
+            continue
+        if full in current_dirs or os.path.realpath(full) in current_dirs:
+            continue
+        stale.append(full)
+
+    if not stale:
+        info(f"No stale version directories for {tool_config['name']}")
+        return []
+
+    if dryrun:
+        for path in stale:
+            info(f"[DRYRUN] Would remove stale version directory: {path}")
+        return stale
+
+    for path in stale:
+        shutil.rmtree(path)
+        info(f"Removed stale version directory: {path}")
+    return stale
 
 
 def validate_tools(tools: List[str]) -> None:

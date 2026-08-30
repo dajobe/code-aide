@@ -16,6 +16,7 @@ from code_aide.install_types import (
 from code_aide.console import error, info, success, warning
 from code_aide.operations import (
     UpgradeResult,
+    clean_tool_versions,
     remove_tool,
     upgrade_tool,
     validate_tools,
@@ -293,6 +294,56 @@ def cmd_remove(args: argparse.Namespace) -> None:
         success("All removals completed successfully!")
     elif skipped and not removed:
         info("No tools were removed (all were not installed)")
+
+
+def cmd_clean(args: argparse.Namespace) -> None:
+    """Handle clean command: remove stale direct-download version dirs."""
+    dryrun = getattr(args, "dryrun", False)
+
+    if args.tools:
+        tools_to_clean = resolve_tool_names(args.tools, TOOLS)
+    else:
+        tools_to_clean = [
+            name
+            for name, config in TOOLS.items()
+            if parse_install_type(config.get("install_type"))
+            == InstallType.DIRECT_DOWNLOAD
+        ]
+        if not tools_to_clean:
+            info("No direct-download tools with cleanable versions")
+            return
+        info(
+            "No tools specified, cleaning direct-download tools: "
+            f"{', '.join(tools_to_clean)}"
+        )
+
+    validate_tools(tools_to_clean)
+
+    cleaned: Dict[str, List[str]] = {}
+    skipped = []
+    for tool in tools_to_clean:
+        print()
+        info(f"=== {'Checking' if dryrun else 'Cleaning'} {tool} ===")
+        removed = clean_tool_versions(tool, dryrun=dryrun)
+        if removed is None:
+            skipped.append(tool)
+        elif removed:
+            cleaned[tool] = removed
+
+    print()
+    print("=" * 42)
+    info("Cleanup Summary" + (" (dry run)" if dryrun else ""))
+    print("=" * 42)
+
+    if cleaned:
+        total = sum(len(paths) for paths in cleaned.values())
+        details = ", ".join(f"{tool} ({len(paths)})" for tool, paths in cleaned.items())
+        noun = "Would remove" if dryrun else "Removed"
+        success(f"{noun} {total} stale version directories: {details}")
+    if skipped:
+        info(f"Not cleanable (no versioned install layout): {', '.join(skipped)}")
+    if not cleaned:
+        success("Nothing to clean!")
 
 
 def cmd_update_versions(args: argparse.Namespace) -> None:

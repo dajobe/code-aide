@@ -52,6 +52,9 @@ code-aide remove -n
 # Remove all managed tools without prompting
 code-aide remove -y
 
+# Remove stale version directories of direct-download tools
+code-aide clean [NAMES]
+
 # Check upstream for latest versions (dry-run)
 code-aide update-versions -n
 

@@ -5,6 +5,7 @@ import logging
 
 from code_aide import __version__
 from code_aide.commands_actions import (
+    cmd_clean,
     cmd_install,
     cmd_remove,
     cmd_update_versions,
@@ -117,6 +118,23 @@ def main() -> None:
         action="store_true",
         help="Do not prompt for confirmation",
     )
+    clean_parser = subparsers.add_parser(
+        "clean",
+        help="Remove stale direct-download version directories",
+    )
+    clean_parser.add_argument(
+        "tools",
+        nargs="*",
+        help="Tools to clean (default: direct-download tools)",
+    )
+    clean_parser.add_argument(
+        "-n",
+        "--dryrun",
+        action="store_true",
+        help="Show what would be removed without removing",
+    )
+    clean_parser.set_defaults(func=cmd_clean)
+
     remove_parser.set_defaults(func=cmd_remove)
 
     update_versions_parser = subparsers.add_parser(

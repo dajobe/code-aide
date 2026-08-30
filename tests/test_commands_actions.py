@@ -645,3 +645,88 @@ class TestCmdRemove(unittest.TestCase):
 
         mock_input.assert_not_called()
         mock_remove.assert_called_once_with("a")
+
+
+class TestCmdClean(unittest.TestCase):
+    """Tests for cmd_clean selection and dry-run behavior."""
+
+    def _tools(self):
+        return {
+            "dl": {
+                "name": "DL Tool",
+                "command": "dl",
+                "install_type": "direct_download",
+                "install_dir": "~/.local/share/dl/versions/{version}",
+            },
+            "npmtool": {
+                "name": "NPM Tool",
+                "command": "npmtool",
+                "install_type": "npm",
+                "npm_package": "npmtool",
+            },
+        }
+
+    def test_default_clean_targets_only_direct_download_tools(self):
+        args = type("Args", (), {"tools": [], "dryrun": True})()
+        with (
+            mock.patch.dict(constants._TOOLS_DATA, self._tools(), clear=True),
+            mock.patch.object(
+                commands_actions, "clean_tool_versions", return_value=[]
+            ) as mock_clean,
+            contextlib.redirect_stdout(io.StringIO()) as buf,
+        ):
+            commands_actions.cmd_clean(args)
+
+        mock_clean.assert_called_once_with("dl", dryrun=True)
+        self.assertIn("cleaning direct-download tools: dl", buf.getvalue())
+
+    def test_named_non_cleanable_tool_is_reported(self):
+        args = type("Args", (), {"tools": ["npmtool"], "dryrun": False})()
+        with (
+            mock.patch.dict(constants._TOOLS_DATA, self._tools(), clear=True),
+            mock.patch.object(
+                commands_actions, "clean_tool_versions", return_value=None
+            ) as mock_clean,
+            contextlib.redirect_stdout(io.StringIO()) as buf,
+        ):
+            commands_actions.cmd_clean(args)
+
+        mock_clean.assert_called_once_with("npmtool", dryrun=False)
+        self.assertIn(
+            "Not cleanable (no versioned install layout): npmtool", buf.getvalue()
+        )
+        self.assertIn("Nothing to clean!", buf.getvalue())
+
+    def test_dryrun_summary_is_labeled(self):
+        args = type("Args", (), {"tools": ["dl"], "dryrun": True})()
+        with (
+            mock.patch.dict(constants._TOOLS_DATA, self._tools(), clear=True),
+            mock.patch.object(
+                commands_actions,
+                "clean_tool_versions",
+                return_value=["/tmp/stale"],
+            ),
+            contextlib.redirect_stdout(io.StringIO()) as buf,
+        ):
+            commands_actions.cmd_clean(args)
+
+        self.assertIn("Cleanup Summary (dry run)", buf.getvalue())
+        self.assertIn(
+            "Would remove 1 stale version directories: dl (1)", buf.getvalue()
+        )
+
+    def test_removal_summary_is_not_labeled_dry_run(self):
+        args = type("Args", (), {"tools": ["dl"], "dryrun": False})()
+        with (
+            mock.patch.dict(constants._TOOLS_DATA, self._tools(), clear=True),
+            mock.patch.object(
+                commands_actions,
+                "clean_tool_versions",
+                return_value=["/tmp/stale"],
+            ),
+            contextlib.redirect_stdout(io.StringIO()) as buf,
+        ):
+            commands_actions.cmd_clean(args)
+
+        self.assertIn("[INFO] Cleanup Summary", buf.getvalue())
+        self.assertNotIn("(dry run)", buf.getvalue())

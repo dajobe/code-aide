@@ -512,3 +512,76 @@ class TestCmdUpgradeDefaultSelection(unittest.TestCase):
             cli_commands_actions.cmd_upgrade(args)
 
         mock_upgrade.assert_called_once_with("current")
+
+
+class TestCleanToolVersions(unittest.TestCase):
+    """Tests for clean_tool_versions."""
+
+    def _setup(self, td, template_name="versions/{version}"):
+        parent = os.path.join(td, os.path.dirname(template_name))
+        os.makedirs(parent, exist_ok=True)
+        version_dirs = []
+        for v in ("1.0.0", "2.0.0"):
+            version_dir = os.path.join(
+                parent, template_name.replace("{version}", v).split("/")[-1]
+            )
+            os.makedirs(version_dir)
+            with open(os.path.join(version_dir, "tool-bin"), "w") as f:
+                f.write("#!/bin/sh\n")
+            version_dirs.append(version_dir)
+        bin_dir = os.path.join(td, "bin")
+        os.makedirs(bin_dir)
+        os.symlink(
+            os.path.join(version_dirs[1], "tool-bin"),
+            os.path.join(bin_dir, "tool"),
+        )
+        return {
+            "name": "Test Tool",
+            "command": "tool",
+            "install_type": "direct_download",
+            "install_dir": os.path.join(td, template_name),
+            "bin_dir": bin_dir,
+            "symlinks": {"tool": "tool-bin"},
+        }
+
+    def _clean(self, cfg, dryrun=False):
+        with mock.patch.dict(constants._TOOLS_DATA, {"test": cfg}, clear=True):
+            return cli_operations.clean_tool_versions("test", dryrun=dryrun)
+
+    def test_dryrun_lists_stale_without_removing(self):
+        with tempfile.TemporaryDirectory() as td:
+            cfg = self._setup(td)
+            stale = self._clean(cfg, dryrun=True)
+            self.assertEqual(stale, [os.path.join(td, "versions", "1.0.0")])
+            self.assertTrue(os.path.isdir(os.path.join(td, "versions", "1.0.0")))
+
+    def test_removes_stale_and_keeps_current(self):
+        with tempfile.TemporaryDirectory() as td:
+            cfg = self._setup(td)
+            stale = self._clean(cfg)
+            self.assertEqual(stale, [os.path.join(td, "versions", "1.0.0")])
+            self.assertFalse(os.path.exists(os.path.join(td, "versions", "1.0.0")))
+            self.assertTrue(os.path.isdir(os.path.join(td, "versions", "2.0.0")))
+
+    def test_prefix_pattern_leaves_unrelated_dirs(self):
+        with tempfile.TemporaryDirectory() as td:
+            cfg = self._setup(td, template_name="store/pkg-{version}")
+            os.makedirs(os.path.join(td, "store", "data"))
+            stale = self._clean(cfg)
+            self.assertEqual(stale, [os.path.join(td, "store", "pkg-1.0.0")])
+            self.assertTrue(os.path.isdir(os.path.join(td, "store", "data")))
+
+    def test_no_current_version_removes_nothing(self):
+        with tempfile.TemporaryDirectory() as td:
+            cfg = self._setup(td)
+            os.remove(os.path.join(td, "bin", "tool"))
+            stale = self._clean(cfg)
+            self.assertEqual(stale, [])
+            self.assertTrue(os.path.isdir(os.path.join(td, "versions", "1.0.0")))
+            self.assertTrue(os.path.isdir(os.path.join(td, "versions", "2.0.0")))
+
+    def test_tool_without_versioned_layout_returns_none(self):
+        with tempfile.TemporaryDirectory() as td:
+            cfg = self._setup(td)
+            cfg["install_dir"] = os.path.join(td, "flat")
+            self.assertIsNone(self._clean(cfg))
