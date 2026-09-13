@@ -347,6 +347,8 @@ install_amp_binary() {
 	fi
 
 	local binary_path="$BIN_DIR/$binary_name"
+	local staged_binary_path
+	staged_binary_path=$(mktemp "$BIN_DIR/tmp.XXXXXX")
 	local checksum_path="$AMP_HOME/amp-install-checksum.txt"
 
 	# Download checksum first
@@ -356,21 +358,22 @@ install_amp_binary() {
 
 	if has_gzip_support; then
 		# Download compressed binary and verify the decompressed bytes against checksum
-		download_gzipped_file "${binary_url}.gz" "$binary_path" 'Amp binary'
+		download_gzipped_file "${binary_url}.gz" "$staged_binary_path" 'Amp binary'
 	else
 		warn "gzip not found; downloading uncompressed binary"
-		download_file "$binary_url" "$binary_path" 'Amp binary'
+		download_file "$binary_url" "$staged_binary_path" 'Amp binary'
 	fi
 
 	# Verify checksum
-	verify_checksum "$binary_path" "$expected_checksum"
+	verify_checksum "$staged_binary_path" "$expected_checksum"
 
 	# Verify signature (optional, only if minisign is installed)
 	# Disabled until release signing is enabled
-	# verify_signature "$binary_path" "$minisign_signature_url"
+	# verify_signature "$staged_binary_path" "$minisign_signature_url"
 
-	# Make executable
-	chmod +x "$binary_path"
+	# Make executable before atomically replacing the installed binary
+	chmod 0755 "$staged_binary_path"
+	mv "$staged_binary_path" "$binary_path"
 
 	# Clean up checksum file
 	rm -f "$checksum_path"
