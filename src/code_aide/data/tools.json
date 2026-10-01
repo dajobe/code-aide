@@ -89,7 +89,7 @@
       "command": "amp",
       "install_type": "script",
       "install_url": "https://ampcode.com/install.sh",
-      "install_sha256": "07bea1669144a5191c873a61a3244266ca046557bff7123f0be41d0723592297",
+      "install_sha256": "70f9a234fdc1aee9bf88af73c38a80435556e5dd364d204bd0ff8b6a27f23f5f",
       "install_script_path_prepend": [
         "~/.local/bin"
       ],

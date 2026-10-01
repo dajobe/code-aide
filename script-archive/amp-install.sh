@@ -164,28 +164,13 @@ detect_platform() {
 			;;
 	esac
 
-	# Check for baseline builds on x64
-	case "$target" in
-		'darwin-x64')
-			# Check Rosetta 2
-			if [[ $(sysctl -n sysctl.proc_translated 2>/dev/null) = 1 ]]; then
-				target=darwin-arm64
-				log "Your shell is running in Rosetta 2. Using $target instead"
-			elif [[ $(sysctl -a 2>/dev/null | grep machdep.cpu | grep AVX2) == '' ]]; then
-				target="darwin-x64-baseline"
-			fi
-			;;
-		'linux-x64')
-			# Check AVX2 support
-			if [[ $(grep avx2 /proc/cpuinfo 2>/dev/null) = '' ]]; then
-				target="linux-x64-baseline"
-			fi
-			;;
-		'windows-x64')
-			# For Windows, default to baseline for better compatibility
-			target="windows-x64-baseline"
-			;;
-	esac
+	# Each OS has one x64 build that also runs on CPUs without AVX2, so the CPU features do not
+	# affect the target. Releases still publish the old -baseline names as copies for older
+	# installers and clients.
+	if [[ "$target" == 'darwin-x64' && $(sysctl -n sysctl.proc_translated 2>/dev/null) = 1 ]]; then
+		target=darwin-arm64
+		log "Your shell is running in Rosetta 2. Using $target instead"
+	fi
 
 	echo "$target"
 }
