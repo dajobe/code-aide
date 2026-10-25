@@ -1,10 +1,13 @@
 """Console output and subprocess helpers for CLI modules."""
 
+from contextlib import nullcontext
+from pathlib import Path
 import shutil
 import subprocess
-from typing import List
+from typing import Any, List
 
 from code_aide.constants import Colors
+from code_aide.npm_cache import npm_cache_environment, run_npm_process
 
 
 def info(message: str) -> None:
@@ -33,7 +36,10 @@ def command_exists(command: str) -> bool:
 
 
 def run_command(
-    cmd: List[str], check: bool = True, capture: bool = True
+    cmd: List[str],
+    check: bool = True,
+    capture: bool = True,
+    timeout: float | None = None,
 ) -> subprocess.CompletedProcess:
     """Run a tool-mutating command with consistent hardening.
 
@@ -47,19 +53,34 @@ def run_command(
     Defaults to capture+text mode. With ``check=True`` (default) a
     non-zero exit raises ``CalledProcessError``.
     """
-    if capture:
-        return subprocess.run(
+    is_npm = bool(cmd) and Path(cmd[0]).name == "npm"
+    if is_npm and any(
+        arg == "--cache" or arg.startswith("--cache=") for arg in cmd[1:]
+    ):
+        raise ValueError("npm cache overrides are managed by code-aide")
+    context = npm_cache_environment() if is_npm else nullcontext(None)
+    with context as env:
+        kwargs: dict[str, Any] = {}
+        if env is not None:
+            kwargs["env"] = env
+        if timeout is not None:
+            kwargs["timeout"] = timeout
+        runner = run_npm_process if is_npm else subprocess.run
+        if capture:
+            return runner(
+                cmd,
+                check=check,
+                capture_output=True,
+                text=True,
+                stdin=subprocess.DEVNULL,
+                **kwargs,
+            )
+        return runner(
             cmd,
             check=check,
-            capture_output=True,
-            text=True,
             stdin=subprocess.DEVNULL,
+            **kwargs,
         )
-    return subprocess.run(
-        cmd,
-        check=check,
-        stdin=subprocess.DEVNULL,
-    )
 
 
 def called_process_error_message(exc: subprocess.CalledProcessError) -> str:

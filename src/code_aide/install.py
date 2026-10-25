@@ -6,6 +6,7 @@ import os
 import platform
 import shutil
 import subprocess
+
 import tarfile
 import tempfile
 from dataclasses import dataclass
@@ -21,6 +22,7 @@ from code_aide.console import (
     success,
     warning,
 )
+from code_aide.npm_cache import npm_cache_environment, stop_process_group
 from code_aide.install_types import InstallType, get_tool_install_type
 from code_aide.versions import check_script_tool, fetch_url
 
@@ -113,13 +115,20 @@ def run_install_script(
         warning(f"About to execute install script for {tool_name}")
         warning("This will run with your user privileges. Press Ctrl+C to cancel.")
 
-        bash_process = subprocess.Popen(
-            ["bash"],
-            stdin=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            env=env,
-        )
-        _, stderr = bash_process.communicate(input=script_content)
+        # Scripts may invoke npm themselves; inherit the same bounded cache.
+        with npm_cache_environment(env) as script_env:
+            bash_process = subprocess.Popen(
+                ["bash"],
+                stdin=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=script_env,
+                start_new_session=True,
+            )
+            try:
+                _, stderr = bash_process.communicate(input=script_content)
+            except BaseException:
+                stop_process_group(bash_process)
+                raise
 
         if bash_process.returncode == 0:
             return True

@@ -265,31 +265,6 @@ verify_checksum() {
 	success "Checksum verified"
 }
 
-# Verify signature using minisign
-verify_signature() {
-	local file="$1"
-	local signature_url="$2"
-
-	if ! command_exists minisign; then
-		log "minisign not installed, skipping signature verification"
-		return 0
-	fi
-
-	local signature_path="$AMP_HOME/amp-install-signature.minisign"
-	local pubkey_path="$AMP_HOME/signing-key.pub"
-
-	download_file "$signature_url" "$signature_path" 'signature'
-	download_file "$AMP_URL/.well-known/signing-key.pub" "$pubkey_path" 'signing key'
-
-	if ! minisign -Vm "$file" -x "$signature_path" -p "$pubkey_path" >/dev/null 2>&1; then
-		rm -f "$signature_path" "$pubkey_path"
-		error "Signature verification failed! The binary may have been tampered with."
-	fi
-
-	rm -f "$signature_path" "$pubkey_path"
-	success "Signature verified"
-}
-
 # Fetch latest CLI version
 fetch_latest_version() {
 	local version_url="$AMP_STORAGE_BASE/cli/cli-version.txt"
@@ -324,7 +299,6 @@ install_amp_binary() {
 
 	local binary_url="$AMP_STORAGE_BASE/cli/${version}/amp-${platform}"
 	local checksum_url="$AMP_STORAGE_BASE/cli/${version}/${platform}-amp.sha256"
-	local minisign_signature_url="$binary_url.minisig"
 
 	# Add .exe for Windows downloads
 	if [[ "$platform" == *"windows"* ]]; then
@@ -351,10 +325,6 @@ install_amp_binary() {
 
 	# Verify checksum
 	verify_checksum "$staged_binary_path" "$expected_checksum"
-
-	# Verify signature (optional, only if minisign is installed)
-	# Disabled until release signing is enabled
-	# verify_signature "$staged_binary_path" "$minisign_signature_url"
 
 	# Make executable before atomically replacing the installed binary
 	chmod 0755 "$staged_binary_path"

@@ -200,20 +200,22 @@ class TestInstallScriptEnv(unittest.TestCase):
         mock_fetch.return_value = (script_content, None)
         env = {"PATH": "/tmp/bin:/usr/bin"}
 
-        result = cli_install.run_install_script(
-            "https://example.com/install.sh",
-            "Example",
-            expected_sha256,
-            env=env,
-        )
+        with tempfile.TemporaryDirectory() as home:
+            with mock.patch.dict(os.environ, {"HOME": home}):
+                result = cli_install.run_install_script(
+                    "https://example.com/install.sh",
+                    "Example",
+                    expected_sha256,
+                    env=env,
+                )
 
         self.assertTrue(result)
-        mock_popen.assert_called_once_with(
-            ["bash"],
-            stdin=cli_install.subprocess.PIPE,
-            stderr=cli_install.subprocess.PIPE,
-            env=env,
-        )
+        mock_popen.assert_called_once()
+        actual_env = mock_popen.call_args.kwargs["env"]
+        self.assertEqual(actual_env["PATH"], env["PATH"])
+        self.assertIn("npm_config_cache", actual_env)
+        self.assertFalse(os.path.exists(actual_env["npm_config_cache"]))
+        self.assertEqual(env, {"PATH": "/tmp/bin:/usr/bin"})
 
 
 class TestInstallDirectDownloadDryrun(unittest.TestCase):

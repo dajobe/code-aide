@@ -207,3 +207,21 @@ uv run pytest tests/test_install.py::TestDetectOsArch -v
 ## License
 
 Apache-2.0
+
+## npm download cache lifetime
+
+Standalone install, upgrade, removal (including migration), and installation
+scripts use private download caches under
+`~/.cache/code-aide/npm-operations/operation-*`. Each invocation gets its own
+directory on the home filesystem instead of the temporary filesystem. npm
+authentication, user configuration and install prefixes remain in effect; only
+the download-cache setting is overridden in the child environment.
+
+Downloads and npm logs in that directory are removed after success, failure,
+timeouts supported by the command runner, and normal Python interruption.
+Captured command errors are still reported. Existing user caches are preserved.
+Dry runs create no operation cache. Concurrent operations never clean another
+operation's cache. A hard kill or machine crash can leave an operation
+directory; inspect it and establish that its operation has stopped before
+explicitly removing it. There is no automatic age-based cleanup of these
+directories.
