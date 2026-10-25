@@ -68,7 +68,10 @@ echo "⠋ Detecting system environment..."
 # 3. Detect Platform
 case "$(uname -s)" in
     Darwin) os="darwin" ;;
-    Linux) os="linux" ;;
+    # Termux needs the Bionic build: Android's linker rejects glibc/musl ones.
+    # uname -o names the userland, so a proot distro inside Termux (e.g. Ubuntu,
+    # "GNU/Linux") still gets the regular Linux build.
+    Linux) if [ "$(uname -o 2>/dev/null)" = "Android" ]; then os="android"; else os="linux"; fi ;;
     *) echo "Fatal: Unsupported operating system: $(uname -s). Antigravity CLI currently supports 64-bit Windows, macOS, and Linux." >&2; exit 1 ;;
 esac
 

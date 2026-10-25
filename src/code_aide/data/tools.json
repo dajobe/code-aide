@@ -72,7 +72,7 @@
       ],
       "install_type": "script",
       "install_url": "https://antigravity.google/cli/install.sh",
-      "install_sha256": "ee1ea43ce4e9e56356c4ab6dad907ef357ae4bdfcaadb682735909fb57c9c640",
+      "install_sha256": "62966c07365423bd4dc209355060744058fb30d60f5323e2d360e39de64e5042",
       "version_manifest_url_template": "https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/{platform}.json",
       "prerequisites": [],
       "min_node_version": null,
