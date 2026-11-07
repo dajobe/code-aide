@@ -157,13 +157,16 @@ def test_explicit_cache_override_rejected_before_cache_creation(cache_home):
 
 def test_symlink_cache_parent_rejected(cache_home, tmp_path):
     target = tmp_path / "outside"
-    target.mkdir(mode=0o755)
+    target.mkdir()
+    # Compare with the starting mode rather than a literal one: mkdir modes
+    # are reduced by the process umask, so the start varies by environment.
+    mode_before = target.stat().st_mode
     (cache_home / ".cache").symlink_to(target)
     with pytest.raises(ValueError, match="symlink"):
         with npm_cache_environment():
             pytest.fail("must reject symlink")
     assert not list(target.iterdir())
-    assert target.stat().st_mode & 0o777 == 0o755
+    assert target.stat().st_mode == mode_before
 
 
 def test_real_timeout_stops_descendant_before_cleanup(cache_home, monkeypatch):
