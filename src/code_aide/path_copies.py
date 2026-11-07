@@ -12,6 +12,7 @@ import shlex
 from dataclasses import dataclass
 from typing import List, Optional
 
+from code_aide.app_bundle import is_app_bundle_tool
 from code_aide.constants import TOOLS
 from code_aide.detection import detect_install_method_at
 from code_aide.detection_types import DetectedInstallInfo
@@ -34,7 +35,7 @@ def find_command_copies(tool_name: str) -> List[CommandCopy]:
     directories) are reported once, at their first PATH position.
     """
     tool_config = TOOLS.get(tool_name)
-    if not tool_config:
+    if not tool_config or is_app_bundle_tool(tool_config):
         return []
     command = tool_config["command"]
 

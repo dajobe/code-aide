@@ -12,6 +12,11 @@ import tempfile
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
+from code_aide.app_bundle import (
+    install_app_bundle,
+    is_app_bundle_tool,
+    tool_location,
+)
 from code_aide.constants import TOOLS
 from code_aide.console import (
     called_process_error_message,
@@ -448,7 +453,9 @@ def install_tool(
     else:
         info(f"Installing {tool_config['name']}...")
 
-    if command_exists(tool_config["command"]):
+    if is_app_bundle_tool(tool_config):
+        existing_path = tool_location(tool_config)
+    elif command_exists(tool_config["command"]):
         existing_path = shutil.which(tool_config["command"])
     else:
         existing_path = None
@@ -509,6 +516,13 @@ def install_tool(
 
     try:
         install_type = get_tool_install_type(tool_config)
+
+        if install_type == InstallType.APP_BUNDLE:
+            if not install_app_bundle(tool_name, tool_config, dryrun):
+                return InstallOutcome(False)
+            if not dryrun:
+                info(tool_config["next_steps"])
+            return InstallOutcome(True)
 
         if install_type == InstallType.NPM:
             npm_package = tool_config["npm_package"]

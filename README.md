@@ -70,18 +70,19 @@ code-aide update-versions -y
 
 ## Supported Tools
 
-| Tool                     | Command    | Install Type    | Default |
-|:-------------------------|:-----------|:----------------|:--------|
-| Cursor CLI               | `agent`    | Direct download | No      |
-| Claude CLI (Claude Code) | `claude`   | Script          | Yes     |
-| Antigravity CLI          | `agy`      | Script          | Yes     |
-| Gemini CLI               | `gemini`   | npm             | No      |
-| OpenCode                 | `opencode` | npm             | No      |
-| Kilo CLI                 | `kilo`     | npm             | No      |
-| Amp (Sourcegraph)        | `amp`      | Script          | No      |
-| Codex CLI                | `codex`    | npm             | No      |
-| Copilot CLI              | `copilot`  | npm             | No      |
-| T3 Code                  | `t3`       | Direct download | No      |
+| Tool                        | Command    | Install Type    | Default |
+|:----------------------------|:-----------|:----------------|:--------|
+| Cursor CLI                  | `agent`    | Direct download | No      |
+| Claude CLI (Claude Code)    | `claude`   | Script          | Yes     |
+| Antigravity CLI             | `agy`      | Script          | Yes     |
+| Gemini CLI                  | `gemini`   | npm             | No      |
+| OpenCode                    | `opencode` | npm             | No      |
+| Kilo CLI                    | `kilo`     | npm             | No      |
+| Amp (Sourcegraph)           | `amp`      | Script          | No      |
+| Codex CLI                   | `codex`    | npm             | No      |
+| Copilot CLI                 | `copilot`  | npm             | No      |
+| T3 Code                     | `t3`       | Direct download | No      |
+| T3 Code desktop app (macOS) | (app)      | App bundle      | No      |
 
 Command aliases are also accepted: `agy` resolves to `antigravity`, `agent` to
 `cursor`, and `t3` to `t3code`.
@@ -91,7 +92,17 @@ against the release's `SHA256SUMS`, into `~/.t3/runtime/versions/` (the same
 layout as the upstream installer). There is no `t3` command for Intel Macs; use
 the desktop app there (`brew install --cask t3-code`). code-aide never restarts
 the `t3` background service; after the CLI changes version it reminds you to run
-`t3 service restart`.
+`t3 service restart`. A `t3` command provided by the desktop app is reported as
+a Homebrew cask install when the `t3-code` cask owns the app.
+
+On macOS, `t3code-app` installs the T3 Code desktop app. Each release's signed
+zip is checked against the SHA-512 in the release's `latest-mac.yml`, unpacked
+into `~/.local/opt/t3code-app/v<version>/`, and activated by pointing
+`~/Applications/T3 Code.app` at it. The CLI and the app upgrade together:
+upgrading either one also upgrades the other if it is installed, so both run the
+same release. If the app is running, code-aide offers to quit it before
+switching versions; if it stays running, neither is upgraded. `status` warns
+when the two versions differ.
 
 ## How Version Data Works
 
@@ -114,42 +125,52 @@ Each entry in `tools.json` describes one managed tool. Required fields are
 `name`, `command`, and `install_type`; the others are optional and only
 consulted when the relevant install method or platform applies.
 
-| Field                           | Required | Notes                                                                                                                |
-|:--------------------------------|:---------|:---------------------------------------------------------------------------------------------------------------------|
-| `name`                          | Yes      | Display name for status output                                                                                       |
-| `command`                       | Yes      | Binary name (looked up in `PATH`)                                                                                    |
-| `aliases`                       | No       | Alternate names accepted by commands and resolved to the canonical tool key                                          |
-| `install_type`                  | Yes      | One of `npm`, `script`, `direct_download`, `pkg`                                                                     |
-| `version_args`                  | No       | List of arguments passed to the binary to print its version (default: `["--version"]`)                               |
-| `version_url`                   | No       | URL queried by `update-versions` to discover the latest upstream version                                             |
-| `version_manifest_url_template` | No       | JSON manifest URL template with `{platform}`; reads its `version` field                                              |
-| `version_extract_pattern`       | No       | Regex applied to the install script to extract the version before generic heuristics                                 |
-| `github_release_repo`           | No       | `owner/repo` whose latest (non-prerelease) GitHub release supplies the version; replaces the install script check    |
-| `latest_version`                | Cache    | Last known upstream version (filled by `update-versions`)                                                            |
-| `latest_date`                   | Cache    | Release date for `latest_version`                                                                                    |
-| `prerequisites`                 | No       | List of required external commands (e.g. `["npm"]`)                                                                  |
-| `min_node_version`              | No       | Minimum major Node.js version required                                                                               |
-| `npm_package`                   | npm      | npm package name (e.g. `@anthropic-ai/claude-code`)                                                                  |
-| `install_url`                   | script   | URL of the install script that will be downloaded and piped to `bash`                                                |
-| `install_sha256`                | script   | SHA-256 of the install script body — required for verified installs                                                  |
-| `download_sha256`               | Cache    | SHA-256 of the downloaded tarball for direct_download tools; recorded by `update-versions`, verified on install      |
-| `install_script_path_prepend`   | script   | Extra directories prepended to `PATH` when the install script runs (e.g. `["~/.local/bin"]`)                         |
-| `download_url_template`         | direct   | URL template with `{version}`, `{os}`, `{arch}` placeholders                                                         |
-| `install_dir`                   | direct   | Directory to extract into; supports `{version}`                                                                      |
-| `bin_dir`                       | direct   | Directory where symlinks for `command` are created (e.g. `~/.local/bin`)                                             |
-| `symlinks`                      | direct   | Map of `link_name` → relative path inside `install_dir` to symlink into `bin_dir`                                    |
-| `checksums_url_template`        | direct   | Publisher `SHA256SUMS` URL template; verified on install in place of `download_sha256`                               |
-| `unsupported_platforms`         | direct   | Map of `<os>-<arch>` to an explanation; install refuses those platforms                                              |
-| `install_complete_marker`       | direct   | File written into the version directory, holding the version, after extraction; an existing match skips the download |
-| `launcher_record_file`          | direct   | File that symlink paths are appended to, so the tool's own pruning keeps the linked version                          |
-| `freebsd_port`                  | FreeBSD  | FreeBSD ports/pkg name (used when running on FreeBSD)                                                                |
-| `freebsd_pkg_repo`              | FreeBSD  | Optional non-default pkg repository name (passed via `pkg install -r <repo>`)                                        |
-| `next_steps`                    | No       | Free-form text printed after a successful install                                                                    |
-| `docs_url`                      | No       | Documentation URL printed after install                                                                              |
-| `self_pruning_versions`         | No       | The tool prunes its own version directories; `clean` leaves them alone                                               |
-| `service_files`                 | No       | Background service files; when one exists, `service_restart_hint` is shown after an upgrade                          |
-| `service_restart_hint`          | No       | Message shown when a background service keeps running the previous version                                           |
-| `self_updates`                  | No       | Tool updates itself when run; excludes it from managed upgrade actions                                               |
+| Field                            | Required | Notes                                                                                                                |
+|:---------------------------------|:---------|:---------------------------------------------------------------------------------------------------------------------|
+| `name`                           | Yes      | Display name for status output                                                                                       |
+| `command`                        | Yes      | Binary name (looked up in `PATH`)                                                                                    |
+| `aliases`                        | No       | Alternate names accepted by commands and resolved to the canonical tool key                                          |
+| `install_type`                   | Yes      | One of `npm`, `script`, `direct_download`, `pkg`, `app_bundle`                                                       |
+| `version_args`                   | No       | List of arguments passed to the binary to print its version (default: `["--version"]`)                               |
+| `version_url`                    | No       | URL queried by `update-versions` to discover the latest upstream version                                             |
+| `version_manifest_url_template`  | No       | JSON manifest URL template with `{platform}`; reads its `version` field                                              |
+| `version_extract_pattern`        | No       | Regex applied to the install script to extract the version before generic heuristics                                 |
+| `github_release_repo`            | No       | `owner/repo` whose latest (non-prerelease) GitHub release supplies the version; replaces the install script check    |
+| `latest_version`                 | Cache    | Last known upstream version (filled by `update-versions`)                                                            |
+| `latest_date`                    | Cache    | Release date for `latest_version`                                                                                    |
+| `prerequisites`                  | No       | List of required external commands (e.g. `["npm"]`)                                                                  |
+| `min_node_version`               | No       | Minimum major Node.js version required                                                                               |
+| `npm_package`                    | npm      | npm package name (e.g. `@anthropic-ai/claude-code`)                                                                  |
+| `install_url`                    | script   | URL of the install script that will be downloaded and piped to `bash`                                                |
+| `install_sha256`                 | script   | SHA-256 of the install script body — required for verified installs                                                  |
+| `download_sha256`                | Cache    | SHA-256 of the downloaded tarball for direct_download tools; recorded by `update-versions`, verified on install      |
+| `install_script_path_prepend`    | script   | Extra directories prepended to `PATH` when the install script runs (e.g. `["~/.local/bin"]`)                         |
+| `download_url_template`          | direct   | URL template with `{version}`, `{os}`, `{arch}` placeholders                                                         |
+| `install_dir`                    | direct   | Directory to extract into; supports `{version}`                                                                      |
+| `bin_dir`                        | direct   | Directory where symlinks for `command` are created (e.g. `~/.local/bin`)                                             |
+| `symlinks`                       | direct   | Map of `link_name` → relative path inside `install_dir` to symlink into `bin_dir`                                    |
+| `checksums_url_template`         | direct   | Publisher `SHA256SUMS` URL template; verified on install in place of `download_sha256`                               |
+| `unsupported_platforms`          | direct   | Map of `<os>-<arch>` to an explanation; install refuses those platforms                                              |
+| `install_complete_marker`        | direct   | File written into the version directory, holding the version, after extraction; an existing match skips the download |
+| `launcher_record_file`           | direct   | File that symlink paths are appended to, so the tool's own pruning keeps the linked version                          |
+| `brew_cask`                      | No       | Homebrew cask that ships a desktop app providing `command`; used for detection and status hints                      |
+| `desktop_cli_shim`               | No       | Path of the desktop app's CLI shim; a command resolving to it is detected as the app (or `brew_cask`)                |
+| `desktop_cli_hint`               | No       | Status hint shown when `brew_cask` is installed but `command` is not                                                 |
+| `freebsd_port`                   | FreeBSD  | FreeBSD ports/pkg name (used when running on FreeBSD)                                                                |
+| `freebsd_pkg_repo`               | FreeBSD  | Optional non-default pkg repository name (passed via `pkg install -r <repo>`)                                        |
+| `next_steps`                     | No       | Free-form text printed after a successful install                                                                    |
+| `docs_url`                       | No       | Documentation URL printed after install                                                                              |
+| `platforms`                      | No       | `platform.system().lower()` values (e.g. `["darwin"]`); the tool is hidden elsewhere                                 |
+| `upgrade_with`                   | No       | Tools upgraded alongside this one, held back if it is not upgraded                                                   |
+| `self_pruning_versions`          | No       | The tool prunes its own version directories; `clean` leaves them alone                                               |
+| `service_files`                  | No       | Background service files; when one exists, `service_restart_hint` is shown after an upgrade                          |
+| `service_restart_hint`           | No       | Message shown when a background service keeps running the previous version                                           |
+| `app_link`                       | app      | Symlink that activates the installed app version (e.g. `~/Applications/T3 Code.app`)                                 |
+| `app_bundle_name`                | app      | Bundle name inside each version directory and in the zip                                                             |
+| `bundle_id`                      | app      | Bundle identifier, used to ask the running app to quit                                                               |
+| `running_process_name`           | app      | Process name checked before switching or removing a version                                                          |
+| `checksum_manifest_url_template` | app      | electron-builder `latest-mac.yml` URL template holding each zip's SHA-512                                            |
+| `self_updates`                   | No       | Tool updates itself when run; excludes it from managed upgrade actions                                               |
 
 ## Features
 

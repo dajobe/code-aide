@@ -18,6 +18,7 @@ class InstallType(_ValueEnum):
     SCRIPT = "script"
     DIRECT_DOWNLOAD = "direct_download"
     PKG = "pkg"
+    APP_BUNDLE = "app_bundle"
 
 
 class InstallMethod(_ValueEnum):
@@ -31,6 +32,7 @@ class InstallMethod(_ValueEnum):
     SCRIPT = "script"
     DIRECT_DOWNLOAD = "direct_download"
     PKG = "pkg"
+    APP_BUNDLE = "app_bundle"
 
 
 InstallTypeInput: TypeAlias = InstallType | str
@@ -43,6 +45,7 @@ _INSTALL_METHOD_BY_TYPE = {
     InstallType.SCRIPT: InstallMethod.SCRIPT,
     InstallType.DIRECT_DOWNLOAD: InstallMethod.DIRECT_DOWNLOAD,
     InstallType.PKG: InstallMethod.PKG,
+    InstallType.APP_BUNDLE: InstallMethod.APP_BUNDLE,
 }
 
 

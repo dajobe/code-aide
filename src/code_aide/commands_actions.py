@@ -27,6 +27,11 @@ from code_aide.prereqs import (
     is_tool_installed,
 )
 from code_aide.status import ToolUpgradeEvaluator
+from code_aide.tool_groups import (
+    expand_upgrade_groups,
+    linked_tools,
+    partner_version_gap,
+)
 from code_aide.versions import (
     apply_sha256_updates,
     check_npm_tool,
@@ -154,11 +159,14 @@ def cmd_upgrade(args: argparse.Namespace) -> None:
 
     tools_to_upgrade = resolve_tool_names(tools_to_upgrade, TOOLS)
     validate_tools(tools_to_upgrade)
+    tools_to_upgrade = expand_upgrade_groups(tools_to_upgrade)
 
     updated = []
     unchanged = []
     failed = []
     skipped = []
+    held_back: List[str] = []
+    hold: Dict[str, str] = {}
 
     for tool in tools_to_upgrade:
         print()
@@ -168,6 +176,11 @@ def cmd_upgrade(args: argparse.Namespace) -> None:
             skipped.append(tool)
             continue
 
+        if tool in hold:
+            warning(f"Not upgrading {tool} so the two stay in step: {hold[tool]}.")
+            held_back.append(tool)
+            continue
+
         result = upgrade_tool(tool)
         if result == UpgradeResult.CHANGED:
             updated.append(tool)
@@ -175,6 +188,17 @@ def cmd_upgrade(args: argparse.Namespace) -> None:
             unchanged.append(tool)
         else:
             failed.append(tool)
+        for partner in linked_tools(tool):
+            if partner in hold or partner not in tools_to_upgrade:
+                continue
+            if tools_to_upgrade.index(partner) < tools_to_upgrade.index(tool):
+                continue
+            if result == UpgradeResult.FAILED:
+                hold[partner] = f"{tool}, which was not upgraded"
+                continue
+            gap = partner_version_gap(tool, partner)
+            if gap:
+                hold[partner] = gap
 
     print()
     print("=" * 42)
@@ -190,8 +214,12 @@ def cmd_upgrade(args: argparse.Namespace) -> None:
     if skipped:
         warning(f"Skipped (not installed): {', '.join(skipped)}")
 
-    if failed:
-        error(f"Failed to upgrade: {', '.join(failed)}")
+    if held_back:
+        warning(f"Held back to stay in step: {', '.join(held_back)}")
+
+    if failed or held_back:
+        if failed:
+            error(f"Failed to upgrade: {', '.join(failed)}")
         sys.exit(1)
 
     if updated:
@@ -307,7 +335,7 @@ def cmd_clean(args: argparse.Namespace) -> None:
             name
             for name, config in TOOLS.items()
             if parse_install_type(config.get("install_type"))
-            == InstallType.DIRECT_DOWNLOAD
+            in (InstallType.DIRECT_DOWNLOAD, InstallType.APP_BUNDLE)
         ]
         if not tools_to_clean:
             info("No direct-download tools with cleanable versions")
@@ -363,6 +391,11 @@ def cmd_update_versions(args: argparse.Namespace) -> None:
             sys.exit(1)
     else:
         tool_names = list(tools.keys())
+    # Tools that upgrade together need the same target release.
+    for name in list(tool_names):
+        for partner in tools[name].get("upgrade_with", []):
+            if partner in tools and partner not in tool_names:
+                tool_names.append(partner)
 
     print(f"Checking {len(tool_names)} tool(s) for updates...")
 
@@ -373,7 +406,11 @@ def cmd_update_versions(args: argparse.Namespace) -> None:
 
         if install_type == InstallType.NPM:
             results.append(check_npm_tool(name, tool_config, args.verbose))
-        elif install_type in (InstallType.SCRIPT, InstallType.DIRECT_DOWNLOAD):
+        elif install_type in (
+            InstallType.SCRIPT,
+            InstallType.DIRECT_DOWNLOAD,
+            InstallType.APP_BUNDLE,
+        ):
             results.append(check_script_tool(name, tool_config, args.verbose))
         else:
             results.append(

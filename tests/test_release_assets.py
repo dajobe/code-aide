@@ -9,7 +9,8 @@ import tempfile
 import unittest
 from unittest import mock
 
-from code_aide import constants
+from code_aide import app_bundle, constants
+from code_aide import detection as cli_detection
 from code_aide import install as cli_install
 from code_aide import release_assets
 from code_aide import versions as cli_versions
@@ -224,6 +225,105 @@ class TestUnsupportedPlatformInstall(unittest.TestCase):
         self.assertFalse(cli_install.install_direct_download("t3code", cfg))
         mock_fetch.assert_not_called()
         self.assertIsNone(cli_install.fetch_download_checksum(cfg))
+
+
+class TestDesktopCliDetection(unittest.TestCase):
+    """Tests for detecting a command provided by a desktop app's shim."""
+
+    def _detect(self, td, app_line, cask_installed, cask_opts=""):
+        shim = os.path.join(td, "example")
+        with open(shim, "w", encoding="utf-8") as f:
+            f.write(f'#!/bin/sh\n{app_line}\nexec "$app" "$@"\n')
+        tools = {
+            "example": {
+                "name": "Example",
+                "command": "example",
+                "install_type": "direct_download",
+                "brew_cask": "example",
+                "desktop_cli_shim": shim,
+            },
+            # The app tool names the bundle the cask installs.
+            "example-app": {
+                "name": "Example app",
+                "command": "example-app",
+                "install_type": "app_bundle",
+                "brew_cask": "example",
+                "app_bundle_name": "Example.app",
+            },
+        }
+        with (
+            mock.patch.object(cli_detection, "TOOLS", tools),
+            mock.patch.object(cli_detection.shutil, "which", return_value=shim),
+            mock.patch.object(
+                app_bundle, "is_brew_cask_installed", return_value=cask_installed
+            ),
+            mock.patch.dict(os.environ, {"HOMEBREW_CASK_OPTS": cask_opts}),
+        ):
+            return cli_detection.detect_install_method("example")
+
+    def test_cask_app_detected_as_brew_cask(self):
+        app = "app='/Applications/Example.app/Contents/MacOS/Example'"
+        with tempfile.TemporaryDirectory() as td:
+            self.assertEqual(
+                self._detect(td, app, True),
+                {"method": "brew_cask", "detail": "example"},
+            )
+
+    def test_user_appdir_cask_detected_as_brew_cask(self):
+        bundle = os.path.expanduser("~/Applications/Example.app")
+        app = f"app='{bundle}/Contents/MacOS/Example'"
+        with tempfile.TemporaryDirectory() as td:
+            self.assertEqual(
+                self._detect(td, app, True, "--appdir=~/Applications"),
+                {"method": "brew_cask", "detail": "example"},
+            )
+
+    def test_other_bundle_in_cask_appdir_is_desktop_app(self):
+        # A nightly build next to the cask's app is not the cask's.
+        bundle = "/Applications/Example Nightly.app"
+        app = f"app='{bundle}/Contents/MacOS/Example'"
+        with tempfile.TemporaryDirectory() as td:
+            self.assertEqual(
+                self._detect(td, app, True),
+                {"method": "system", "detail": bundle},
+            )
+
+    def test_copy_outside_cask_appdir_is_desktop_app(self):
+        # The cask installs into /Applications; a manual copy in
+        # ~/Applications is not the cask's even though the cask exists.
+        bundle = os.path.expanduser("~/Applications/Example.app")
+        app = f"app='{bundle}/Contents/MacOS/Example'"
+        with tempfile.TemporaryDirectory() as td:
+            self.assertEqual(
+                self._detect(td, app, True),
+                {"method": "system", "detail": bundle},
+            )
+
+    def test_app_dir_without_cask_is_desktop_app(self):
+        app = "app='/Applications/Example.app/Contents/MacOS/Example'"
+        with tempfile.TemporaryDirectory() as td:
+            self.assertEqual(
+                self._detect(td, app, False)["method"],
+                "system",
+            )
+
+    def test_non_cask_app_detected_as_desktop_app(self):
+        bundle = "/Users/x/opt/Example.app"
+        app = f"app='{bundle}/Contents/MacOS/Example'"
+        with tempfile.TemporaryDirectory() as td:
+            info = self._detect(td, app, True)
+            self.assertEqual(info, {"method": "system", "detail": bundle})
+            self.assertEqual(
+                cli_detection.format_install_method(info["method"], info["detail"]),
+                f"desktop app ({bundle})",
+            )
+
+    def test_is_brew_cask_installed_checks_caskroom(self):
+        with tempfile.TemporaryDirectory() as td:
+            os.makedirs(os.path.join(td, "Caskroom", "example"))
+            with mock.patch.dict(os.environ, {"HOMEBREW_PREFIX": td}):
+                self.assertTrue(cli_detection.is_brew_cask_installed("example"))
+                self.assertFalse(cli_detection.is_brew_cask_installed("nope-zzz"))
 
 
 if __name__ == "__main__":

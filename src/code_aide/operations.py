@@ -8,6 +8,7 @@ import sys
 from enum import Enum
 from typing import Dict, List, Optional, TypedDict
 
+from code_aide.app_bundle import app_is_running, is_app_bundle_tool
 from code_aide.constants import TOOLS
 from code_aide.detection import (
     detect_install_method,
@@ -308,6 +309,12 @@ def clean_tool_versions(tool_name: str, dryrun: bool = False) -> Optional[List[s
             "code-aide leaves them alone"
         )
         return None
+    if is_app_bundle_tool(tool_config) and app_is_running(tool_config) is not False:
+        warning(
+            f"{tool_config['name']} is running (or could not be checked); "
+            "not removing old versions"
+        )
+        return []
 
     expanded = os.path.expanduser(install_dir_template)
     parent = os.path.dirname(expanded)
@@ -320,9 +327,14 @@ def clean_tool_versions(tool_name: str, dryrun: bool = False) -> Optional[List[s
 
     # Never remove the version the symlinks currently point at.
     current_dirs = set()
-    bin_dir = os.path.expanduser(tool_config.get("bin_dir", ""))
-    for link_name in tool_config.get("symlinks", {}):
-        link_path = os.path.join(bin_dir, link_name)
+    if is_app_bundle_tool(tool_config):
+        link_paths = [os.path.expanduser(tool_config["app_link"])]
+    else:
+        bin_dir = os.path.expanduser(tool_config.get("bin_dir", ""))
+        link_paths = [
+            os.path.join(bin_dir, name) for name in tool_config.get("symlinks", {})
+        ]
+    for link_path in link_paths:
         if os.path.islink(link_path):
             current_dirs.add(os.path.dirname(os.path.realpath(link_path)))
 

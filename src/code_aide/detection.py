@@ -13,6 +13,12 @@ import shutil
 import subprocess
 from typing import Optional
 
+from code_aide.app_bundle import (
+    detect_app_install,
+    is_app_bundle_tool,
+    is_brew_cask_installed,
+    is_cask_app,
+)
 from code_aide.constants import TOOLS
 from code_aide.console import command_exists
 from code_aide.detection_types import DetectedInstallInfo, PackageVersionInfo
@@ -44,6 +50,7 @@ __all__ = [
     "get_brew_package_info",
     "get_pkg_package_info",
     "get_system_package_info",
+    "is_brew_cask_installed",
     "is_deprecated_install",
     "is_freebsd",
     "is_install_method_deprecated",
@@ -74,6 +81,48 @@ def _pkg_owns_file(path: str) -> bool:
         return False
 
 
+# A desktop app's CLI shim names the app executable on a line like
+# app='/Applications/Example.app/Contents/MacOS/Example'
+_SHIM_APP_RE = re.compile(r"^app='([^']+?\.app)/", re.MULTILINE)
+
+
+def _cask_bundle_name(cask: str) -> Optional[str]:
+    """Return the bundle name of the app tool that installs from this cask."""
+    for tool_config in TOOLS.values():
+        if tool_config.get("brew_cask") == cask and tool_config.get("app_bundle_name"):
+            return str(tool_config["app_bundle_name"])
+    return None
+
+
+def _detect_desktop_cli(
+    tool_config: dict, real_path: str
+) -> Optional[DetectedInstallInfo]:
+    """Detect a command provided by a desktop app's CLI shim.
+
+    Some desktop apps install their command as a shell shim that
+    runs the app bundle, so the command never resolves into the Caskroom.
+    Reports the Homebrew cask when it owns the app, otherwise the app bundle
+    as a user-managed install.
+    """
+    shim = tool_config.get("desktop_cli_shim")
+    if not shim or os.path.realpath(os.path.expanduser(shim)) != real_path:
+        return None
+    try:
+        with open(real_path, encoding="utf-8", errors="replace") as handle:
+            content = handle.read(65536)
+    except OSError:
+        return None
+    match = _SHIM_APP_RE.search(content)
+    if not match:
+        return None
+    app_bundle = match.group(1)
+
+    cask = tool_config.get("brew_cask")
+    if cask and is_cask_app(app_bundle, cask, _cask_bundle_name(cask)):
+        return {"method": InstallMethod.BREW_CASK, "detail": cask}
+    return {"method": InstallMethod.SYSTEM, "detail": app_bundle}
+
+
 def _empty_install_info() -> DetectedInstallInfo:
     """Return the default empty install-info shape."""
     return {"method": None, "detail": None}
@@ -84,6 +133,9 @@ def detect_install_method(tool_name: str) -> DetectedInstallInfo:
     tool_config = TOOLS.get(tool_name)
     if not tool_config:
         return _empty_install_info()
+
+    if is_app_bundle_tool(tool_config):
+        return detect_app_install(tool_config)
 
     command_path = shutil.which(tool_config["command"])
     if not command_path:
@@ -105,6 +157,10 @@ def detect_install_method_at(
     caskroom_match = re.search(r"/Caskroom/([^/]+)/", real_path)
     if caskroom_match:
         return {"method": InstallMethod.BREW_CASK, "detail": caskroom_match.group(1)}
+
+    desktop_info = _detect_desktop_cli(tool_config, real_path)
+    if desktop_info:
+        return desktop_info
 
     if "/.local/share/claude/versions/" in real_path:
         return {"method": InstallMethod.SCRIPT, "detail": "native installer"}
@@ -149,7 +205,11 @@ def format_install_method(method: InstallMethodInput, detail: Optional[str]) -> 
     if install_method == InstallMethod.PKG:
         return f"FreeBSD pkg ({detail})" if detail else "FreeBSD pkg"
     if install_method == InstallMethod.SYSTEM:
+        if detail and detail.endswith(".app"):
+            return f"desktop app ({detail})"
         return f"system package ({detail})" if detail else "system package"
+    if install_method == InstallMethod.APP_BUNDLE:
+        return f"app bundle ({detail})" if detail else "app bundle"
     if install_method == InstallMethod.SCRIPT or install_type == InstallType.SCRIPT:
         return "script"
     if (

@@ -8,12 +8,14 @@ import platform
 import shutil
 from typing import List
 
+from code_aide.app_bundle import is_app_bundle_tool, tool_location
 from code_aide.config import ensure_versions_cache
 from code_aide.constants import Colors, TOOLS
 from code_aide.detection import (
     format_install_method,
     format_migration_warning,
     detect_install_method,
+    is_brew_cask_installed,
 )
 from code_aide.console import command_exists, info, warning
 from code_aide.install_types import (
@@ -26,6 +28,7 @@ from code_aide.package_managers import (
 )
 from code_aide.path_copies import removal_hint, shadowed_copies
 from code_aide.prereqs import is_tool_installed
+from code_aide.tool_groups import linked_version_mismatches
 from code_aide.detection import is_freebsd
 from code_aide.status import (
     print_brew_version_status,
@@ -43,6 +46,13 @@ from code_aide.versions import (
 _logger = logging.getLogger(__name__)
 
 
+def _locate(tool_config: dict) -> str | None:
+    """Return the tool's app bundle or the command found on PATH."""
+    if is_app_bundle_tool(tool_config):
+        return tool_location(tool_config)
+    return shutil.which(tool_config["command"])
+
+
 def cmd_list(args: argparse.Namespace) -> None:
     """Handle list command."""
     print("Available AI Coding CLI Tools:")
@@ -58,14 +68,17 @@ def cmd_list(args: argparse.Namespace) -> None:
         )
 
         print(f"{Colors.BLUE}{tool_config['name']}{Colors.NC}")
-        print(f"  Command:      {tool_config['command']}")
+        if is_app_bundle_tool(tool_config):
+            print(f"  App:          {tool_config['app_link']}")
+        else:
+            print(f"  Command:      {tool_config['command']}")
         print(f"  Status:       {status}")
         install_type = parse_install_type(tool_config["install_type"])
         managed_by = install_type.value if install_type else tool_config["install_type"]
         print(f"  Managed by:   {managed_by} (code-aide)")
 
         if installed:
-            tool_path = shutil.which(tool_config["command"])
+            tool_path = _locate(tool_config)
             print(f"  Location:     {tool_path}")
             install_info = detect_install_method(tool_name)
             print(
@@ -129,6 +142,7 @@ def _short_install_method(method: str | None) -> str:
         InstallMethod.PKG: "pkg",
         InstallMethod.SCRIPT: "script",
         InstallMethod.DIRECT_DOWNLOAD: "download",
+        InstallMethod.APP_BUNDLE: "app",
     }
     install_method = parse_install_method(method)
     if install_method is None:
@@ -213,7 +227,6 @@ def cmd_status_compact() -> None:
     ensure_versions_cache(TOOLS)
     rows: list[tuple[str, str, str, str, str]] = []
     for tool_name, tool_config in TOOLS.items():
-        name = tool_config["command"]
         assessment = ToolUpgradeEvaluator(tool_name, tool_config).evaluate()
         status = assessment.status
 
@@ -223,10 +236,14 @@ def cmd_status_compact() -> None:
                 state = "opt-in"
             else:
                 state = f"{Colors.RED}missing{Colors.NC}"
-            rows.append((name, state, "", "", ""))
+            cask = tool_config.get("brew_cask")
+            if cask and is_brew_cask_installed(cask):
+                rows.append((tool_name, state, "", "cask", "desktop app only, no CLI"))
+            else:
+                rows.append((tool_name, state, "", "", ""))
             continue
 
-        tool_path = shutil.which(tool_config["command"]) or ""
+        tool_path = _locate(tool_config) or ""
         method = _short_install_method(assessment.install_method)
         ver, ver_status = _compact_version_status(
             assessment.installed_version, assessment.version_state
@@ -237,7 +254,7 @@ def cmd_status_compact() -> None:
         if shadowed:
             tool_path += f" {Colors.YELLOW}(+{shadowed} shadowed){Colors.NC}"
 
-        rows.append((name, state, ver, method, tool_path))
+        rows.append((tool_name, state, ver, method, tool_path))
 
     # Calculate column widths (ignoring ANSI escape codes)
     import re
@@ -261,6 +278,8 @@ def cmd_status_compact() -> None:
     print(fmt_row(headers))
     for row in rows:
         print(fmt_row(row))
+    for message in linked_version_mismatches():
+        warning(message)
 
 
 def cmd_status(args: argparse.Namespace) -> None:
@@ -280,7 +299,7 @@ def cmd_status(args: argparse.Namespace) -> None:
     for tool_name, tool_config in TOOLS.items():
         print(f"{Colors.BLUE}{tool_config['name']}{Colors.NC}")
 
-        tool_path = shutil.which(tool_config["command"])
+        tool_path = _locate(tool_config)
         assessment = ToolUpgradeEvaluator(
             tool_name, tool_config, tool_path=tool_path
         ).evaluate()
@@ -288,6 +307,14 @@ def cmd_status(args: argparse.Namespace) -> None:
 
         if not status["installed"]:
             print(f"  Status:       {Colors.RED}✗ Not installed{Colors.NC}")
+            cask = tool_config.get("brew_cask")
+            if cask and is_brew_cask_installed(cask):
+                info(
+                    f"  Desktop app installed via Homebrew cask ({cask}) without "
+                    f"the {tool_config['command']} command."
+                )
+                if tool_config.get("desktop_cli_hint"):
+                    info(f"  {tool_config['desktop_cli_hint']}")
         else:
             print(f"  Status:       {Colors.GREEN}✓ Installed{Colors.NC}")
 
@@ -331,6 +358,9 @@ def cmd_status(args: argparse.Namespace) -> None:
                     warning(f"  {err_msg}")
 
         print()
+
+    for message in linked_version_mismatches():
+        warning(message)
 
     if outdated_count > 0:
         names = ", ".join(outdated_tools)

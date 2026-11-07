@@ -6,6 +6,7 @@ import subprocess
 import sys
 from typing import List, Optional
 
+from code_aide.app_bundle import is_app_bundle_tool, tool_location
 from code_aide.constants import TOOLS
 from code_aide.console import (
     called_process_error_message,
@@ -145,6 +146,8 @@ def is_tool_installed(tool_name: str) -> bool:
     tool_config = TOOLS.get(tool_name)
     if not tool_config:
         return False
+    if is_app_bundle_tool(tool_config):
+        return tool_location(tool_config) is not None
     return command_exists(tool_config["command"])
 
 

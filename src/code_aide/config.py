@@ -7,6 +7,7 @@ bundled defaults with cached data.
 
 import importlib.resources
 import json
+import platform
 import logging
 import os
 import tempfile
@@ -133,9 +134,23 @@ def load_tools_config() -> dict:
     """
     bundled = load_bundled_tools()
     cache = load_versions_cache()
-    tools = bundled.get("tools", {})
+    tools = {
+        name: config
+        for name, config in bundled.get("tools", {}).items()
+        if is_supported_platform(config)
+    }
     merge_cached_versions(tools, cache)
     return tools
+
+
+def is_supported_platform(tool_config: dict) -> bool:
+    """Return True unless the tool lists platforms that exclude this one.
+
+    ``platforms`` holds ``platform.system().lower()`` values such as
+    ``darwin`` and ``linux``; a tool without it runs everywhere.
+    """
+    platforms = tool_config.get("platforms")
+    return not platforms or platform.system().lower() in platforms
 
 
 def resolve_tool_names(
@@ -200,7 +215,11 @@ def versions_cache_is_fresh(tools: Mapping[str, Dict[str, Any]]) -> bool:
         if install_type == InstallType.NPM:
             if not tool_config.get("latest_version"):
                 return False
-        elif install_type in (InstallType.SCRIPT, InstallType.DIRECT_DOWNLOAD):
+        elif install_type in (
+            InstallType.SCRIPT,
+            InstallType.DIRECT_DOWNLOAD,
+            InstallType.APP_BUNDLE,
+        ):
             has_version_source = (
                 tool_config.get("version_url")
                 or tool_config.get("version_manifest_url_template")
@@ -230,7 +249,11 @@ def refresh_versions_cache(tools: Mapping[str, Dict[str, Any]]) -> None:
         try:
             if install_type == InstallType.NPM:
                 result = check_npm_tool(name, tool_config)
-            elif install_type in (InstallType.SCRIPT, InstallType.DIRECT_DOWNLOAD):
+            elif install_type in (
+                InstallType.SCRIPT,
+                InstallType.DIRECT_DOWNLOAD,
+                InstallType.APP_BUNDLE,
+            ):
                 if "install_url" not in tool_config and not tool_config.get(
                     "github_release_repo"
                 ):

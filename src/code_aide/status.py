@@ -21,6 +21,7 @@ from code_aide.install_types import (
     parse_install_method,
     parse_install_type,
 )
+from code_aide.app_bundle import bundle_version, is_app_bundle_tool, tool_location
 from code_aide.prereqs import is_tool_installed
 from code_aide.status_print import (
     print_brew_version_status,  # noqa: F401  (re-exported)
@@ -278,7 +279,11 @@ class ToolUpgradeEvaluator:
                 get_pkg_package_info(pkg_name, repo=pkg_repo) if pkg_name else None
             )
         elif method == InstallMethod.SYSTEM:
-            tool_path = self._tool_path or shutil.which(self.tool_config["command"])
+            tool_path = self._tool_path or (
+                tool_location(self.tool_config)
+                if is_app_bundle_tool(self.tool_config)
+                else shutil.which(self.tool_config["command"])
+            )
             self._package_info = (
                 get_system_package_info(tool_path) if tool_path else None
             )
@@ -346,6 +351,11 @@ def get_tool_status(tool_name: str, tool_config: Dict[str, Any]) -> ToolStatus:
     }
 
     if not status_info["installed"]:
+        return status_info
+
+    if is_app_bundle_tool(tool_config):
+        bundle = tool_location(tool_config)
+        status_info["version"] = bundle_version(bundle) if bundle else None
         return status_info
 
     command = tool_config["command"]

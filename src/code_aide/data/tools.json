@@ -192,6 +192,9 @@
       "symlinks": {
         "t3": "t3"
       },
+      "brew_cask": "t3-code",
+      "desktop_cli_shim": "~/.t3/bin/t3",
+      "desktop_cli_hint": "Install the t3 command from the desktop app (Settings > About), or run 'code-aide install t3code'",
       "prerequisites": [],
       "min_node_version": null,
       "next_steps": "Run 't3' to start the server and open the web app; it needs an authenticated provider such as claude, codex, or agent",
@@ -200,12 +203,41 @@
       ],
       "docs_url": "https://github.com/pingdotgg/t3code/blob/main/docs/user/install.md",
       "default_install": false,
+      "upgrade_with": [
+        "t3code-app"
+      ],
       "self_pruning_versions": true,
       "service_files": [
         "~/Library/LaunchAgents/com.t3tools.t3code.service.plist",
         "~/.config/systemd/user/t3code.service"
       ],
       "service_restart_hint": "The t3 background service keeps running the previous version until it restarts. Run 't3 service restart' when convenient; it interrupts running agent turns and terminals."
+    },
+    "t3code-app": {
+      "name": "T3 Code desktop app",
+      "command": "t3code-app",
+      "install_type": "app_bundle",
+      "platforms": [
+        "darwin"
+      ],
+      "github_release_repo": "pingdotgg/t3code",
+      "download_url_template": "https://github.com/pingdotgg/t3code/releases/download/v{version}/T3-Code-{version}-{arch}.zip",
+      "checksum_manifest_url_template": "https://github.com/pingdotgg/t3code/releases/download/v{version}/latest-mac.yml",
+      "install_dir": "~/.local/opt/t3code-app/v{version}",
+      "install_dir_note": "Same layout the dotfiles t3code-app tool used, so an existing install is adopted without a download",
+      "app_bundle_name": "T3 Code (Beta).app",
+      "app_link": "~/Applications/T3 Code.app",
+      "bundle_id": "com.t3tools.t3code",
+      "running_process_name": "T3 Code (Beta)",
+      "brew_cask": "t3-code",
+      "upgrade_with": [
+        "t3code"
+      ],
+      "prerequisites": [],
+      "min_node_version": null,
+      "next_steps": "Open 'T3 Code' from ~/Applications",
+      "docs_url": "https://github.com/pingdotgg/t3code/blob/main/docs/user/install.md",
+      "default_install": false
     }
   }
 }

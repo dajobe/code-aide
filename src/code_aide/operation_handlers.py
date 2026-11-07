@@ -26,6 +26,12 @@ from code_aide.install import (
     run_install_script,
     run_pkg_command,
 )
+from code_aide.app_bundle import (
+    ensure_app_stopped,
+    install_app_bundle,
+    remove_app_bundle,
+)
+from code_aide.constants import TOOLS
 from code_aide.path_copies import npm_prefix_for
 from code_aide.install_types import (
     InstallMethod,
@@ -50,6 +56,20 @@ def _npm_prefix_args(cfg: Dict) -> list:
     return ["--prefix", prefix] if prefix else []
 
 
+def _cask_app_stopped(cfg: Dict, cask: str, action: str) -> bool:
+    """Return True unless the cask's desktop app is running and stays so.
+
+    A cask may be reached through the app tool itself or through a command
+    the app provides (such as an ``example`` shim), so look up the app tool that
+    names this cask to find its process.
+    """
+    candidates = [cfg, *TOOLS.values()]
+    for app_cfg in candidates:
+        if app_cfg.get("brew_cask") == cask and app_cfg.get("running_process_name"):
+            return ensure_app_stopped(app_cfg, action)
+    return True
+
+
 # --- upgrade handlers -------------------------------------------------------
 
 
@@ -64,6 +84,8 @@ def _upgrade_brew_formula(_name: str, cfg: Dict, detail: Optional[str]) -> bool:
 def _upgrade_brew_cask(_name: str, cfg: Dict, detail: Optional[str]) -> bool:
     if not detail:
         error(f"No brew cask detected for {cfg['name']}")
+        return False
+    if not _cask_app_stopped(cfg, detail, "upgrade it"):
         return False
     run_command(["brew", "upgrade", "--cask", detail], check=True, capture=False)
     return True
@@ -111,7 +133,12 @@ def _upgrade_pkg(_name: str, cfg: Dict, detail: Optional[str]) -> bool:
     return True
 
 
-def _upgrade_system(_name: str, cfg: Dict, _detail: Optional[str]) -> bool:
+def _upgrade_system(_name: str, cfg: Dict, detail: Optional[str]) -> bool:
+    if detail and detail.endswith(".app"):
+        error(
+            f"{cfg['name']} is provided by the desktop app at {detail}, which updates itself."
+        )
+        return False
     error(
         f"{cfg['name']} is managed by the system package manager. "
         "Use your package manager to upgrade it."
@@ -119,7 +146,12 @@ def _upgrade_system(_name: str, cfg: Dict, _detail: Optional[str]) -> bool:
     return False
 
 
+def _upgrade_app_bundle(name: str, cfg: Dict, _detail: Optional[str]) -> bool:
+    return install_app_bundle(name, cfg)
+
+
 UPGRADE_HANDLERS: Dict[InstallMethod, _OperationHandler] = {
+    InstallMethod.APP_BUNDLE: _upgrade_app_bundle,
     InstallMethod.BREW_FORMULA: _upgrade_brew_formula,
     InstallMethod.BREW_CASK: _upgrade_brew_cask,
     InstallMethod.NPM: _upgrade_npm,
@@ -146,6 +178,8 @@ def _remove_brew_formula(_name: str, cfg: Dict, detail: Optional[str]) -> bool:
 def _remove_brew_cask(_name: str, cfg: Dict, detail: Optional[str]) -> bool:
     if not detail:
         error(f"No brew cask detected for {cfg['name']}")
+        return False
+    if not _cask_app_stopped(cfg, detail, "remove it"):
         return False
     run_command(["brew", "uninstall", "--cask", detail], check=True, capture=False)
     success(f"{cfg['name']} removed successfully")
@@ -248,7 +282,12 @@ def _remove_pkg(_name: str, cfg: Dict, detail: Optional[str]) -> bool:
     return True
 
 
-def _remove_system(_name: str, cfg: Dict, _detail: Optional[str]) -> bool:
+def _remove_system(_name: str, cfg: Dict, detail: Optional[str]) -> bool:
+    if detail and detail.endswith(".app"):
+        error(
+            f"{cfg['name']} is provided by the desktop app at {detail}. Remove the app to remove it."
+        )
+        return False
     error(
         f"{cfg['name']} is managed by the system package manager. "
         "Use your package manager to remove it."
@@ -256,7 +295,12 @@ def _remove_system(_name: str, cfg: Dict, _detail: Optional[str]) -> bool:
     return False
 
 
+def _remove_app_bundle(_name: str, cfg: Dict, _detail: Optional[str]) -> bool:
+    return remove_app_bundle(cfg)
+
+
 REMOVE_HANDLERS: Dict[InstallMethod, _OperationHandler] = {
+    InstallMethod.APP_BUNDLE: _remove_app_bundle,
     InstallMethod.BREW_FORMULA: _remove_brew_formula,
     InstallMethod.BREW_CASK: _remove_brew_cask,
     InstallMethod.NPM: _remove_npm,
