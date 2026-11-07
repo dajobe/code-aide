@@ -26,6 +26,7 @@ from code_aide.install import (
     run_install_script,
     run_pkg_command,
 )
+from code_aide.path_copies import npm_prefix_for
 from code_aide.install_types import (
     InstallMethod,
     InstallType,
@@ -33,6 +34,20 @@ from code_aide.install_types import (
 )
 
 _OperationHandler = Callable[[str, Dict, Optional[str]], bool]
+
+
+def _npm_prefix_args(cfg: Dict) -> list:
+    """Return npm --prefix arguments targeting the copy that runs from PATH.
+
+    With several npm global prefixes (such as ~/.npm-packages and Homebrew's),
+    the npm first on PATH may not own the active copy; naming its prefix
+    upgrades or removes that copy rather than a different one.
+    """
+    command_path = shutil.which(cfg["command"])
+    if not command_path:
+        return []
+    prefix = npm_prefix_for(os.path.realpath(command_path))
+    return ["--prefix", prefix] if prefix else []
 
 
 # --- upgrade handlers -------------------------------------------------------
@@ -59,7 +74,10 @@ def _upgrade_npm(_name: str, cfg: Dict, detail: Optional[str]) -> bool:
     if not npm_package:
         error(f"No npm package configured for {cfg['name']}")
         return False
-    run_command(["npm", "install", "-g", f"{npm_package}@latest"], check=True)
+    run_command(
+        ["npm", "install", "-g", *_npm_prefix_args(cfg), f"{npm_package}@latest"],
+        check=True,
+    )
     return True
 
 
@@ -139,7 +157,9 @@ def _remove_npm(_name: str, cfg: Dict, detail: Optional[str]) -> bool:
     if not npm_package:
         error(f"No npm package configured for {cfg['name']}")
         return False
-    run_command(["npm", "uninstall", "-g", npm_package], check=True)
+    run_command(
+        ["npm", "uninstall", "-g", *_npm_prefix_args(cfg), npm_package], check=True
+    )
     success(f"{cfg['name']} removed successfully")
     return True
 

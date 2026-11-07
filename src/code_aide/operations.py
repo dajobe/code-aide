@@ -15,6 +15,7 @@ from code_aide.detection import (
     is_deprecated_install,
 )
 from code_aide.package_managers import query_package_owner
+from code_aide.path_copies import find_command_copies, removal_hint
 from code_aide.install import install_tool
 from code_aide.install_types import (
     InstallMethod,
@@ -85,42 +86,28 @@ def _upgrade_result_from_snapshots(
     return UpgradeResult.CHANGED
 
 
-def _warn_duplicate_system_install(tool_name: str) -> None:
-    """Warn if a duplicate system-packaged binary shadows or coexists."""
-    tool_config = TOOLS[tool_name]
-    command = tool_config["command"]
-
-    # Find all instances of the command in PATH
-    seen = set()
-    paths = []
-    for directory in os.environ.get("PATH", "").split(os.pathsep):
-        candidate = os.path.join(directory, command)
-        if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
-            real = os.path.realpath(candidate)
-            if real not in seen:
-                seen.add(real)
-                paths.append(real)
-
-    if len(paths) < 2:
+def _warn_duplicate_installs(tool_name: str) -> None:
+    """Warn about other copies of the command that coexist on PATH."""
+    copies = find_command_copies(tool_name)
+    if len(copies) < 2:
         return
 
-    system_prefixes = ("/opt/", "/usr/bin/", "/usr/sbin/", "/usr/local/bin/")
-    for path in paths:
-        if not any(path.startswith(p) for p in system_prefixes):
-            continue
-        package, remove_cmd = query_package_owner(path)
-        if package and remove_cmd:
-            warning(
-                f"A system-packaged {command} is also installed at {path} "
-                f"(package: {package})."
-            )
-            info(f"To remove it, run:  {remove_cmd}")
-        else:
-            warning(
-                f"A system-packaged {command} is also installed at {path}. "
-                "You may want to remove it with your package manager."
-            )
-        return
+    command = TOOLS[tool_name]["command"]
+    active = copies[0]
+    for copy in copies[1:]:
+        label = format_install_method(copy.install["method"], copy.install["detail"])
+        hint = removal_hint(copy)
+        if (
+            hint is None
+            and parse_install_method(copy.install["method"]) == InstallMethod.SYSTEM
+        ):
+            _package, hint = query_package_owner(copy.real_path)
+        warning(
+            f"Another {command} is installed at {copy.path} ({label}); "
+            f"{active.path} comes first on PATH."
+        )
+        if hint:
+            info(f"To remove it, run:  {hint}")
 
 
 def _migrate_install_method(tool_name: str) -> UpgradeResult:
@@ -142,14 +129,14 @@ def _migrate_install_method(tool_name: str) -> UpgradeResult:
     )
     info(f"Migrating {tool_config['name']} from {old_label} to {new_label}...")
 
-    if not remove_tool(tool_name):
+    if not remove_tool(tool_name, warn_remaining=False):
         error(
             f"Failed to remove old {old_label} install of {tool_config['name']}. "
             "Migration aborted."
         )
         return UpgradeResult.FAILED
 
-    if not install_tool(tool_name, force=True):
+    if not install_tool(tool_name, force=True, report_existing=False):
         error(f"Failed to install {tool_config['name']} via {new_label}.")
         error(
             f"The old {old_label} install has been removed. "
@@ -169,7 +156,7 @@ def _migrate_install_method(tool_name: str) -> UpgradeResult:
         return UpgradeResult.FAILED
 
     success(f"{tool_config['name']} migrated from {old_label} to {new_label}")
-    _warn_duplicate_system_install(tool_name)
+    _warn_duplicate_installs(tool_name)
     return UpgradeResult.CHANGED
 
 
@@ -221,6 +208,7 @@ def upgrade_tool(tool_name: str) -> UpgradeResult:
         if not handler(tool_name, tool_config, detail):
             return UpgradeResult.FAILED
         after = _get_upgrade_snapshot(tool_name, tool_config)
+        _warn_duplicate_installs(tool_name)
         return _upgrade_result_from_snapshots(tool_config, before, after)
 
     except subprocess.CalledProcessError as exc:
@@ -234,8 +222,12 @@ def upgrade_tool(tool_name: str) -> UpgradeResult:
         return UpgradeResult.FAILED
 
 
-def remove_tool(tool_name: str) -> bool:
-    """Remove a tool based on its configuration."""
+def remove_tool(tool_name: str, warn_remaining: bool = True) -> bool:
+    """Remove a tool based on its configuration.
+
+    With warn_remaining, reports copies of the command still on PATH
+    afterwards (for example a second npm global install).
+    """
     tool_config = TOOLS.get(tool_name)
     if not tool_config:
         error(f"Unknown tool: {tool_name}")
@@ -260,7 +252,17 @@ def remove_tool(tool_name: str) -> bool:
         return False
 
     try:
-        return handler(tool_name, tool_config, detail)
+        removed = handler(tool_name, tool_config, detail)
+        if removed and warn_remaining:
+            for copy in find_command_copies(tool_name):
+                warning(
+                    f"{tool_config['command']} is still on PATH at {copy.path} "
+                    f"({format_install_method(copy.install['method'], copy.install['detail'])})."
+                )
+                hint = removal_hint(copy)
+                if hint:
+                    info(f"To remove it, run:  {hint}")
+        return removed
     except subprocess.CalledProcessError as exc:
         error(
             f"Failed to remove {tool_config['name']}: "

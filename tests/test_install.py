@@ -357,6 +357,31 @@ class TestInstallTool(unittest.TestCase):
         )
         mock_info.assert_any_call("[DRYRUN] Would install npm package: test-tool")
 
+    def test_migration_install_does_not_report_remaining_copy(self):
+        tool_config = {
+            "name": "Test Tool",
+            "command": "test-tool",
+            "install_type": "npm",
+            "npm_package": "test-tool",
+            "next_steps": "Run test-tool",
+        }
+
+        with (
+            mock.patch.dict(constants._TOOLS_DATA, {"test": tool_config}, clear=True),
+            mock.patch.object(cli_install, "command_exists", return_value=True),
+            mock.patch.object(
+                cli_install.shutil, "which", return_value="/opt/other/bin/test-tool"
+            ),
+            mock.patch.object(cli_install, "info") as mock_info,
+        ):
+            result = cli_install.install_tool(
+                "test", dryrun=True, force=True, report_existing=False
+            )
+
+        self.assertTrue(result)
+        messages = " ".join(str(c.args[0]) for c in mock_info.call_args_list)
+        self.assertNotIn("reinstall", messages.lower())
+
     def test_script_install_passes_configured_env(self):
         tool_config = {
             "name": "Test Tool",

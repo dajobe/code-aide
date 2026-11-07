@@ -147,8 +147,8 @@ class TestMigrateInstallMethod(unittest.TestCase):
         ):
             result = cli_operations.upgrade_tool("test")
         self.assertEqual(result, UpgradeResult.CHANGED)
-        mock_remove.assert_called_once_with("test")
-        mock_install.assert_called_once_with("test", force=True)
+        mock_remove.assert_called_once_with("test", warn_remaining=False)
+        mock_install.assert_called_once_with("test", force=True, report_existing=False)
 
     def test_upgrade_normal_when_not_deprecated(self):
         """upgrade_tool does normal upgrade when not deprecated."""

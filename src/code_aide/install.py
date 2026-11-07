@@ -352,9 +352,18 @@ def install_direct_download(
 
 
 def install_tool(
-    tool_name: str, dryrun: bool = False, force: bool = False
+    tool_name: str,
+    dryrun: bool = False,
+    force: bool = False,
+    report_existing: bool = True,
 ) -> InstallOutcome:
-    """Install a tool based on its configuration."""
+    """Install a tool based on its configuration.
+
+    With force, an existing copy of the command is reinstalled over. A
+    migration passes report_existing=False: it has already removed the old
+    install, so any copy still on PATH is a separate one, which the
+    migration reports itself afterwards.
+    """
     tool_config = TOOLS.get(tool_name)
     if not tool_config:
         error(f"Unknown tool: {tool_name}")
@@ -372,7 +381,7 @@ def install_tool(
         else:
             warning(f"{tool_config['command']} already installed at {tool_path}")
         return InstallOutcome(True)
-    if command_exists(tool_config["command"]) and force:
+    if command_exists(tool_config["command"]) and force and report_existing:
         tool_path = shutil.which(tool_config["command"])
         if dryrun:
             info(

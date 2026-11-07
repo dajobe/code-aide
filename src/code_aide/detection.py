@@ -38,6 +38,7 @@ __all__ = [
     "DetectedInstallInfo",
     "PackageVersionInfo",
     "detect_install_method",
+    "detect_install_method_at",
     "format_install_method",
     "format_migration_warning",
     "get_brew_package_info",
@@ -88,6 +89,13 @@ def detect_install_method(tool_name: str) -> DetectedInstallInfo:
     if not command_path:
         return _empty_install_info()
 
+    return detect_install_method_at(tool_config, command_path)
+
+
+def detect_install_method_at(
+    tool_config: dict, command_path: str
+) -> DetectedInstallInfo:
+    """Detect how the command at a specific path was installed."""
     real_path = os.path.realpath(command_path)
 
     cellar_match = re.search(r"/Cellar/([^/]+)/", real_path)

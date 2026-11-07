@@ -24,6 +24,7 @@ from code_aide.install_types import (
 from code_aide.package_managers import (
     detect_package_manager as _detect_package_manager,
 )
+from code_aide.path_copies import removal_hint, shadowed_copies
 from code_aide.prereqs import is_tool_installed
 from code_aide.detection import is_freebsd
 from code_aide.status import (
@@ -232,6 +233,9 @@ def cmd_status_compact() -> None:
         )
 
         state = ver_status if ver_status else "?"
+        shadowed = len(shadowed_copies(tool_name))
+        if shadowed:
+            tool_path += f" {Colors.YELLOW}(+{shadowed} shadowed){Colors.NC}"
 
         rows.append((name, state, ver, method, tool_path))
 
@@ -307,6 +311,14 @@ def cmd_status(args: argparse.Namespace) -> None:
                     migration_msg = format_migration_warning(tool_name)
                     if migration_msg:
                         warning(f"  {migration_msg}")
+                for copy in shadowed_copies(tool_name):
+                    label = format_install_method(
+                        copy.install["method"], copy.install["detail"]
+                    )
+                    warning(f"  Shadowed:     {copy.path} ({label})")
+                    hint = removal_hint(copy)
+                    if hint:
+                        info(f"  To remove it: {hint}")
 
             if status["user"]:
                 print(f"  User:         {status['user']}")
