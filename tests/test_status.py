@@ -410,6 +410,34 @@ class TestGetToolStatus(unittest.TestCase):
         status = self._run(returncode=1, stdout="1.2.3\n")
         self.assertIsNone(status["version"])
 
+    def test_nonzero_exit_records_last_output_line(self):
+        status = self._run(returncode=1, stderr="loading\nno platform package found\n")
+        self.assertIsNone(status["version"])
+        self.assertEqual(status["version_error"], "no platform package found")
+
+    def test_nonzero_exit_without_output_records_status(self):
+        status = self._run(returncode=3)
+        self.assertEqual(status["version_error"], "exited with status 3")
+
+    def test_success_without_output_records_error(self):
+        status = self._run(returncode=0)
+        self.assertEqual(status["version_error"], "printed no version")
+
+    def test_successful_check_has_no_error(self):
+        self.assertIsNone(self._run(stdout="1.2.3\n")["version_error"])
+
+    def test_timeout_records_error(self):
+        with (
+            mock.patch.object(cli_status, "is_tool_installed", return_value=True),
+            mock.patch.object(
+                cli_status.subprocess,
+                "run",
+                side_effect=subprocess.TimeoutExpired(["test-tool"], 10),
+            ),
+        ):
+            status = cli_status.get_tool_status("test", self._TOOL_CONFIG)
+        self.assertEqual(status["version_error"], "timed out after 10s")
+
     def test_not_installed_short_circuits(self):
         with mock.patch.object(
             cli_status, "is_tool_installed", return_value=False

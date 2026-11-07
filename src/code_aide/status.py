@@ -46,6 +46,8 @@ class ToolStatus(TypedDict, total=False):
     user: str | None
     usage: str | None
     errors: list[str]
+    # Why the installed tool's version could not be read, if it couldn't.
+    version_error: str | None
 
 
 InstallInfo = DetectedInstallInfo
@@ -348,6 +350,7 @@ def get_tool_status(tool_name: str, tool_config: Dict[str, Any]) -> ToolStatus:
         "user": None,
         "usage": None,
         "errors": [],
+        "version_error": None,
     }
 
     if not status_info["installed"]:
@@ -356,6 +359,8 @@ def get_tool_status(tool_name: str, tool_config: Dict[str, Any]) -> ToolStatus:
     if is_app_bundle_tool(tool_config):
         bundle = tool_location(tool_config)
         status_info["version"] = bundle_version(bundle) if bundle else None
+        if not status_info["version"]:
+            status_info["version_error"] = "could not read the app's Info.plist"
         return status_info
 
     command = tool_config["command"]
@@ -370,19 +375,27 @@ def get_tool_status(tool_name: str, tool_config: Dict[str, Any]) -> ToolStatus:
             check=False,
             stdin=subprocess.DEVNULL,
         )
-        if result.returncode == 0:
-            # Some tools print their version to stderr; prefer stdout.
-            output = result.stdout.strip() or result.stderr.strip()
-            if output:
-                status_info["version"] = output.split("\n")[0]
+        # Some tools print their version to stderr; prefer stdout.
+        output = result.stdout.strip() or result.stderr.strip()
+        if result.returncode == 0 and output:
+            status_info["version"] = output.split("\n")[0]
+        elif result.returncode == 0:
+            status_info["version_error"] = "printed no version"
+        else:
+            last_line = output.splitlines()[-1].strip() if output else ""
+            status_info["version_error"] = (
+                last_line or f"exited with status {result.returncode}"
+            )
     except subprocess.TimeoutExpired:
         status_info["errors"].append("Version check timed out after 10s")
-    except Exception:
+        status_info["version_error"] = "timed out after 10s"
+    except Exception as exc:
         _logger.debug(
             "Version check failed for %s (%s)",
             tool_name,
             " ".join(cmd),
             exc_info=True,
         )
+        status_info["version_error"] = str(exc) or type(exc).__name__
 
     return status_info

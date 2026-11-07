@@ -284,6 +284,51 @@ class TestCmdStatus(unittest.TestCase):
         self.assertIn("ok", output)
         self.assertNotIn("old", output)
 
+    def _status_output(self, command, long_view=False):
+        tools = {
+            "x": {
+                "name": "Example Tool",
+                "command": "example",
+                "install_type": "npm",
+                "latest_version": "2.0.0",
+            }
+        }
+        status = {
+            "installed": True,
+            "version": None,
+            "user": None,
+            "usage": None,
+            "errors": [],
+            "version_error": "no platform package found",
+        }
+        args = type("Args", (), {"long": long_view})()
+        with (
+            mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
+            mock.patch.object(
+                commands_tools.shutil, "which", return_value="/opt/bin/example"
+            ),
+            mock.patch("code_aide.status.get_tool_status", return_value=status),
+            mock.patch(
+                "code_aide.status.detect_install_method",
+                return_value={"method": "npm", "detail": "example"},
+            ),
+        ):
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+                command(args)
+        return buf.getvalue()
+
+    def test_compact_status_reports_failed_version_check(self, _mock_cache):
+        output = self._status_output(lambda _args: commands_tools.cmd_status_compact())
+        self.assertIn("failed", output)
+        self.assertIn("x: version check failed (no platform package found)", output)
+        self.assertIn("code-aide upgrade x", output)
+
+    def test_long_status_reports_failed_version_check(self, _mock_cache):
+        output = self._status_output(commands_tools.cmd_status, long_view=True)
+        self.assertIn("Version check failed: no platform package found", output)
+        self.assertIn("code-aide upgrade x", output)
+
     def test_list_shows_migration_warning(self, _mock_cache):
         """cmd_list shows migration warning for deprecated install."""
         tools = {

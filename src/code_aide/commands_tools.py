@@ -226,6 +226,7 @@ def cmd_status_compact() -> None:
     """Show compact one-line-per-tool status."""
     ensure_versions_cache(TOOLS)
     rows: list[tuple[str, str, str, str, str]] = []
+    failed_checks: list[tuple[str, str]] = []
     for tool_name, tool_config in TOOLS.items():
         assessment = ToolUpgradeEvaluator(tool_name, tool_config).evaluate()
         status = assessment.status
@@ -250,6 +251,10 @@ def cmd_status_compact() -> None:
         )
 
         state = ver_status if ver_status else "?"
+        version_error = status.get("version_error")
+        if not status["version"] and version_error:
+            state = f"{Colors.RED}failed{Colors.NC}"
+            failed_checks.append((tool_name, version_error))
         shadowed = len(shadowed_copies(tool_name))
         if shadowed:
             tool_path += f" {Colors.YELLOW}(+{shadowed} shadowed){Colors.NC}"
@@ -278,6 +283,11 @@ def cmd_status_compact() -> None:
     print(fmt_row(headers))
     for row in rows:
         print(fmt_row(row))
+    for tool_name, version_error in failed_checks:
+        warning(
+            f"{tool_name}: version check failed ({version_error}); "
+            f"try 'code-aide upgrade {tool_name}' to reinstall it."
+        )
     for message in linked_version_mismatches():
         warning(message)
 
@@ -317,6 +327,12 @@ def cmd_status(args: argparse.Namespace) -> None:
                     info(f"  {tool_config['desktop_cli_hint']}")
         else:
             print(f"  Status:       {Colors.GREEN}✓ Installed{Colors.NC}")
+
+            if not status["version"] and status.get("version_error"):
+                warning(
+                    f"  Version check failed: {status['version_error']}. "
+                    f"Try 'code-aide upgrade {tool_name}' to reinstall it."
+                )
 
             if status["version"]:
                 _print_version_status(
