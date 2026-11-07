@@ -24,6 +24,13 @@ from code_aide.console import (
 )
 from code_aide.npm_cache import npm_cache_environment, stop_process_group
 from code_aide.install_types import InstallType, get_tool_install_type
+from code_aide.release_assets import (
+    install_marker_matches,
+    parse_sha256sums,
+    record_launchers,
+    unsupported_platform_message,
+    write_install_marker,
+)
 from code_aide.versions import check_script_tool, fetch_url
 
 DOWNLOAD_TIMEOUT_SECONDS = 120
@@ -179,6 +186,28 @@ def detect_os_arch() -> tuple:
     return os_name, arch
 
 
+def fetch_upstream_sha256(
+    tool_config: Dict[str, Any],
+    version: str,
+    os_name: str,
+    arch: str,
+    download_url: str,
+) -> str:
+    """Return the publisher's SHA256 for the download from its checksum file.
+
+    Raises RuntimeError when the checksum file does not list the download.
+    """
+    sums_url = tool_config["checksums_url_template"].format(
+        version=version, os=os_name, arch=arch
+    )
+    sums_data, _ = fetch_url(sums_url)
+    filename = download_url.rsplit("/", 1)[-1]
+    digest = parse_sha256sums(sums_data.decode("utf-8", errors="replace"), filename)
+    if not digest:
+        raise RuntimeError(f"{sums_url} does not list a checksum for {filename}")
+    return digest
+
+
 def fetch_download_checksum(tool_config: Dict[str, Any]) -> Optional[str]:
     """Download a direct-download tarball and return its SHA256 hex digest.
 
@@ -192,9 +221,13 @@ def fetch_download_checksum(tool_config: Dict[str, Any]) -> Optional[str]:
         return None
     try:
         os_name, arch = detect_os_arch()
+        if unsupported_platform_message(tool_config, os_name, arch):
+            return None
         url = tool_config["download_url_template"].format(
             version=version, os=os_name, arch=arch
         )
+        if tool_config.get("checksums_url_template"):
+            return fetch_upstream_sha256(tool_config, version, os_name, arch, url)
         info(f"Downloading {url} to compute SHA256...")
         data, _ = fetch_url(url, timeout=DOWNLOAD_TIMEOUT_SECONDS)
     except Exception as exc:
@@ -211,6 +244,95 @@ def extract_tar_member(
         tar_file.extract(member, destination, filter="data")
     except TypeError:
         tar_file.extract(member, destination)
+
+
+def _download_verified(
+    tool_name: str,
+    cfg: Dict[str, Any],
+    version: str,
+    os_name: str,
+    arch: str,
+    download_url: str,
+) -> Optional[bytes]:
+    """Download a tarball and check its SHA256; return None on mismatch.
+
+    A publisher checksum file (``checksums_url_template``) takes precedence
+    over the checksum recorded by 'code-aide update-versions'.
+    """
+    if cfg.get("checksums_url_template"):
+        expected_sha256: Optional[str] = fetch_upstream_sha256(
+            cfg, version, os_name, arch, download_url
+        )
+        source = "the publisher's checksum file"
+    else:
+        expected_sha256 = cfg.get("download_sha256")
+        source = "the checksum recorded by 'code-aide update-versions'"
+
+    info("Downloading package...")
+    tarball_data, _ = fetch_url(download_url, timeout=DOWNLOAD_TIMEOUT_SECONDS)
+    success(f"Downloaded {len(tarball_data)} bytes")
+
+    if not expected_sha256:
+        warning("No download SHA256 recorded - tarball integrity cannot be verified!")
+        warning("Run 'code-aide update-versions -y' to record checksums.")
+        return tarball_data
+
+    actual_sha256 = hashlib.sha256(tarball_data).hexdigest()
+    if actual_sha256 != expected_sha256:
+        error(f"SHA256 verification FAILED for {tool_name} download!")
+        error(f"Expected: {expected_sha256}")
+        error(f"Actual:   {actual_sha256}")
+        error(f"The downloaded tarball does not match {source}.")
+        error(
+            "It may be corrupted or tampered with. After reviewing, "
+            "re-run 'code-aide update-versions -y' to record the new "
+            "checksum."
+        )
+        return None
+    success("Download SHA256 verification passed")
+    return tarball_data
+
+
+def _extract_tarball(
+    tarball_data: bytes, install_dir: str, cfg: Dict[str, Any], version: str
+) -> None:
+    """Extract a tarball, dropping its top-level directory, into install_dir.
+
+    Extraction goes to a sibling temporary directory that replaces
+    install_dir only once it is complete.
+    """
+    install_parent = os.path.dirname(install_dir) or "."
+    os.makedirs(install_parent, exist_ok=True)
+    temp_dir = tempfile.mkdtemp(
+        prefix=os.path.basename(install_dir) + ".tmp-", dir=install_parent
+    )
+
+    try:
+        with tarfile.open(fileobj=io.BytesIO(tarball_data), mode="r:gz") as tf:
+            for member in tf.getmembers():
+                parts = member.name.split("/", 1)
+                if len(parts) <= 1:
+                    continue
+
+                normalized_name = os.path.normpath(parts[1])
+                if normalized_name in ("", "."):
+                    continue
+                if normalized_name.startswith("..") or os.path.isabs(normalized_name):
+                    continue
+
+                member.name = normalized_name
+                extract_tar_member(tf, member, temp_dir)
+
+        write_install_marker(cfg, temp_dir, version)
+        if os.path.exists(install_dir):
+            shutil.rmtree(install_dir)
+        os.rename(temp_dir, install_dir)
+        success(f"Extracted to {install_dir}")
+
+    except Exception:
+        if os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
+        raise
 
 
 def install_direct_download(
@@ -240,6 +362,10 @@ def install_direct_download(
                 return False
         os_name, arch = detect_os_arch()
         info(f"Platform: {os_name}/{arch}")
+        unsupported = unsupported_platform_message(cfg, os_name, arch)
+        if unsupported:
+            error(f"{cfg['name']} has no download for {os_name}/{arch}: {unsupported}")
+            return False
 
         url_template = cfg["download_url_template"]
         download_url = url_template.format(version=version, os=os_name, arch=arch)
@@ -262,74 +388,19 @@ def install_direct_download(
                 info(f"[DRYRUN]   {link_name} -> {install_dir}/{target}")
             return True
 
-        info("Downloading package...")
-        tarball_data, _ = fetch_url(download_url, timeout=DOWNLOAD_TIMEOUT_SECONDS)
-        success(f"Downloaded {len(tarball_data)} bytes")
-
-        expected_sha256 = cfg.get("download_sha256")
-        if expected_sha256:
-            actual_sha256 = hashlib.sha256(tarball_data).hexdigest()
-            if actual_sha256 != expected_sha256:
-                error(f"SHA256 verification FAILED for {tool_name} download!")
-                error(f"Expected: {expected_sha256}")
-                error(f"Actual:   {actual_sha256}")
-                error(
-                    "The downloaded tarball does not match the checksum recorded "
-                    "by 'code-aide update-versions'."
-                )
-                error(
-                    "It may be corrupted or tampered with. After reviewing, "
-                    "re-run 'code-aide update-versions -y' to record the new "
-                    "checksum."
-                )
-                return False
-            success("Download SHA256 verification passed")
+        if install_marker_matches(cfg, install_dir, version):
+            info(f"Version {version} is already present in {install_dir}")
         else:
-            warning(
-                "No download SHA256 recorded - tarball integrity cannot be " "verified!"
+            tarball_data = _download_verified(
+                tool_name, cfg, version, os_name, arch, download_url
             )
-            warning("Run 'code-aide update-versions -y' to record checksums.")
-
-        install_parent = os.path.dirname(install_dir) or "."
-        os.makedirs(install_parent, exist_ok=True)
-        temp_dir = tempfile.mkdtemp(
-            prefix=os.path.basename(install_dir) + ".tmp-", dir=install_parent
-        )
-
-        try:
-            with tarfile.open(fileobj=io.BytesIO(tarball_data), mode="r:gz") as tf:
-                for member in tf.getmembers():
-                    parts = member.name.split("/", 1)
-                    if len(parts) <= 1 and not member.isdir():
-                        continue
-                    if len(parts) > 1:
-                        member_name = parts[1]
-                    else:
-                        continue
-
-                    normalized_name = os.path.normpath(member_name)
-                    if normalized_name in ("", "."):
-                        continue
-                    if normalized_name.startswith("..") or os.path.isabs(
-                        normalized_name
-                    ):
-                        continue
-
-                    member.name = normalized_name
-                    extract_tar_member(tf, member, temp_dir)
-
-            if os.path.exists(install_dir):
-                shutil.rmtree(install_dir)
-            os.rename(temp_dir, install_dir)
-            success(f"Extracted to {install_dir}")
-
-        except Exception:
-            if os.path.exists(temp_dir):
-                shutil.rmtree(temp_dir)
-            raise
+            if tarball_data is None:
+                return False
+            _extract_tarball(tarball_data, install_dir, cfg, version)
 
         os.makedirs(bin_dir, exist_ok=True)
         symlinks = cfg.get("symlinks", {})
+        link_paths = []
         for link_name, target_name in symlinks.items():
             link_path = os.path.join(bin_dir, link_name)
             target_path = os.path.join(install_dir, target_name)
@@ -338,9 +409,12 @@ def install_direct_download(
                 os.remove(link_path)
 
             os.symlink(target_path, link_path)
+            link_paths.append(link_path)
             info(f"Symlink: {link_path} -> {target_path}")
+        record_launchers(cfg, link_paths)
 
-        success(f"{cfg['name']} installed successfully")
+        # Callers report success: install_tool once per install, and
+        # upgrade_tool once it has compared the versions.
         return True
 
     except RuntimeError as exc:
@@ -374,15 +448,19 @@ def install_tool(
     else:
         info(f"Installing {tool_config['name']}...")
 
-    if command_exists(tool_config["command"]) and not force:
-        tool_path = shutil.which(tool_config["command"])
+    if command_exists(tool_config["command"]):
+        existing_path = shutil.which(tool_config["command"])
+    else:
+        existing_path = None
+    if existing_path and not force:
+        tool_path = existing_path
         if dryrun:
             info(f"{tool_config['command']} already installed at {tool_path}")
         else:
             warning(f"{tool_config['command']} already installed at {tool_path}")
         return InstallOutcome(True)
-    if command_exists(tool_config["command"]) and force and report_existing:
-        tool_path = shutil.which(tool_config["command"])
+    if existing_path and force and report_existing:
+        tool_path = existing_path
         if dryrun:
             info(
                 f"[DRYRUN] Would reinstall {tool_config['command']} despite existing "

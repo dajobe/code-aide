@@ -382,6 +382,27 @@ class TestInstallTool(unittest.TestCase):
         messages = " ".join(str(c.args[0]) for c in mock_info.call_args_list)
         self.assertNotIn("reinstall", messages.lower())
 
+    def test_direct_download_install_reports_success_once(self):
+        tool_config = {
+            "name": "Test Tool",
+            "command": "test-tool",
+            "install_type": "direct_download",
+            "next_steps": "Run test-tool",
+            "bin_dir": "/tmp/bin",
+        }
+
+        with (
+            mock.patch.dict(constants._TOOLS_DATA, {"test": tool_config}, clear=True),
+            mock.patch.object(cli_install, "command_exists", return_value=False),
+            mock.patch.object(
+                cli_install, "install_direct_download", return_value=True
+            ),
+            mock.patch.object(cli_install, "success") as mock_success,
+        ):
+            self.assertTrue(cli_install.install_tool("test"))
+
+        mock_success.assert_called_once_with("Test Tool installed successfully")
+
     def test_script_install_passes_configured_env(self):
         tool_config = {
             "name": "Test Tool",

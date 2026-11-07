@@ -266,6 +266,49 @@ def extract_script_version(
     return None
 
 
+GITHUB_LATEST_RELEASE_URL = "https://api.github.com/repos/{repo}/releases/latest"
+
+
+def check_github_release_tool(
+    tool_name: str, tool_config: Dict[str, Any], verbose: bool = False
+) -> Dict[str, Any]:
+    """Check a direct-download tool against its latest GitHub release.
+
+    GitHub's "latest" release excludes drafts and prereleases, so nightly
+    builds are never picked up. The version is stored without a leading 'v'.
+    """
+    result: Dict[str, Any] = {
+        "tool": tool_name,
+        "type": "github_release",
+        "version": "-",
+        "date": "-",
+        "sha256_current": "-",
+        "sha256_latest": "-",
+        "status": "unknown",
+        "update": None,
+    }
+    url = GITHUB_LATEST_RELEASE_URL.format(repo=tool_config["github_release_repo"])
+    try:
+        data, _ = fetch_url(url)
+        release = json.loads(data)
+        tag = release.get("tag_name")
+        if not isinstance(tag, str) or not tag.strip():
+            raise ValueError(f"no tag_name in {url}")
+        version = normalize_version(tag.strip())
+        result["version"] = version
+        result["date"] = parse_iso_date(release.get("published_at")) or "-"
+        cached_version = tool_config.get("latest_version", "")
+        if cached_version and normalize_version(cached_version) == version:
+            result["status"] = "ok"
+        else:
+            result["status"] = "changed"
+    except Exception as exc:
+        result["status"] = "error"
+        if verbose:
+            result["version"] = f"error: {exc}"
+    return result
+
+
 def check_script_tool(
     tool_name: str, tool_config: Dict[str, Any], verbose: bool = False
 ) -> Dict[str, Any]:
@@ -273,8 +316,13 @@ def check_script_tool(
 
     For 'script' type tools, detects changes via SHA256 comparison of the
     install script.  For 'direct_download' tools, extracts the version from
-    the install script and compares it to the cached latest_version.
+    the install script and compares it to the cached latest_version.  Tools
+    with a ``github_release_repo`` read the version from that repository's
+    latest GitHub release instead of an install script.
     """
+    if tool_config.get("github_release_repo"):
+        return check_github_release_tool(tool_name, tool_config, verbose)
+
     install_url = tool_config["install_url"]
     install_type = parse_install_type(
         tool_config.get("install_type", InstallType.SCRIPT)
@@ -362,6 +410,8 @@ def format_check_backend(check_type: str) -> str:
         return "npm-registry"
     if check_type in ("script", "direct_download"):
         return "script-url"
+    if check_type == "github_release":
+        return "github-release"
     return check_type
 
 

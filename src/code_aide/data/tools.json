@@ -170,6 +170,42 @@
       ],
       "docs_url": "https://kilo.ai/docs/cli",
       "default_install": false
+    },
+    "t3code": {
+      "name": "T3 Code",
+      "command": "t3",
+      "aliases": [
+        "t3"
+      ],
+      "install_type": "direct_download",
+      "github_release_repo": "pingdotgg/t3code",
+      "download_url_template": "https://github.com/pingdotgg/t3code/releases/download/v{version}/t3-{version}-{os}-{arch}.tar.gz",
+      "checksums_url_template": "https://github.com/pingdotgg/t3code/releases/download/v{version}/SHA256SUMS",
+      "unsupported_platforms": {
+        "darwin-x64": "there is no t3 CLI for Intel Macs; install the desktop app with 'brew install --cask t3-code'"
+      },
+      "install_dir": "~/.t3/runtime/versions/{version}",
+      "install_dir_note": "Matches the layout used by https://t3.codes/install.sh and 't3 update', so 't3 service install' reuses the download",
+      "install_complete_marker": ".install-complete",
+      "launcher_record_file": "~/.t3/runtime/launchers",
+      "bin_dir": "~/.local/bin",
+      "symlinks": {
+        "t3": "t3"
+      },
+      "prerequisites": [],
+      "min_node_version": null,
+      "next_steps": "Run 't3' to start the server and open the web app; it needs an authenticated provider such as claude, codex, or agent",
+      "version_args": [
+        "--version"
+      ],
+      "docs_url": "https://github.com/pingdotgg/t3code/blob/main/docs/user/install.md",
+      "default_install": false,
+      "self_pruning_versions": true,
+      "service_files": [
+        "~/Library/LaunchAgents/com.t3tools.t3code.service.plist",
+        "~/.config/systemd/user/t3code.service"
+      ],
+      "service_restart_hint": "The t3 background service keeps running the previous version until it restarts. Run 't3 service restart' when convenient; it interrupts running agent turns and terminals."
     }
   }
 }

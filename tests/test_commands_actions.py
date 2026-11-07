@@ -692,9 +692,7 @@ class TestCmdClean(unittest.TestCase):
             commands_actions.cmd_clean(args)
 
         mock_clean.assert_called_once_with("npmtool", dryrun=False)
-        self.assertIn(
-            "Not cleanable (no versioned install layout): npmtool", buf.getvalue()
-        )
+        self.assertIn("Not cleaned by code-aide: npmtool", buf.getvalue())
         self.assertIn("Nothing to clean!", buf.getvalue())
 
     def test_dryrun_summary_is_labeled(self):

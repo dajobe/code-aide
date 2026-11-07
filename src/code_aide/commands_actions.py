@@ -341,7 +341,7 @@ def cmd_clean(args: argparse.Namespace) -> None:
         noun = "Would remove" if dryrun else "Removed"
         success(f"{noun} {total} stale version directories: {details}")
     if skipped:
-        info(f"Not cleanable (no versioned install layout): {', '.join(skipped)}")
+        info(f"Not cleaned by code-aide: {', '.join(skipped)}")
     if not cleaned:
         success("Nothing to clean!")
 

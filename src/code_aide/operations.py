@@ -86,6 +86,19 @@ def _upgrade_result_from_snapshots(
     return UpgradeResult.CHANGED
 
 
+def warn_service_restart(tool_config: Dict) -> None:
+    """Warn when a background service keeps running the previous version.
+
+    code-aide switches the command but never restarts a service, since that
+    can interrupt work in progress.
+    """
+    service_files = [
+        os.path.expanduser(p) for p in tool_config.get("service_files", [])
+    ]
+    if any(os.path.exists(path) for path in service_files):
+        warning(tool_config["service_restart_hint"])
+
+
 def _warn_duplicate_installs(tool_name: str) -> None:
     """Warn about other copies of the command that coexist on PATH."""
     copies = find_command_copies(tool_name)
@@ -156,6 +169,7 @@ def _migrate_install_method(tool_name: str) -> UpgradeResult:
         return UpgradeResult.FAILED
 
     success(f"{tool_config['name']} migrated from {old_label} to {new_label}")
+    warn_service_restart(tool_config)
     _warn_duplicate_installs(tool_name)
     return UpgradeResult.CHANGED
 
@@ -209,7 +223,10 @@ def upgrade_tool(tool_name: str) -> UpgradeResult:
             return UpgradeResult.FAILED
         after = _get_upgrade_snapshot(tool_name, tool_config)
         _warn_duplicate_installs(tool_name)
-        return _upgrade_result_from_snapshots(tool_config, before, after)
+        result = _upgrade_result_from_snapshots(tool_config, before, after)
+        if result == UpgradeResult.CHANGED:
+            warn_service_restart(tool_config)
+        return result
 
     except subprocess.CalledProcessError as exc:
         error(
@@ -284,6 +301,12 @@ def clean_tool_versions(tool_name: str, dryrun: bool = False) -> Optional[List[s
     tool_config = TOOLS[tool_name]
     install_dir_template = tool_config.get("install_dir", "")
     if not install_dir_template or "{version}" not in install_dir_template:
+        return None
+    if tool_config.get("self_pruning_versions"):
+        info(
+            f"{tool_config['name']} prunes its own old versions; "
+            "code-aide leaves them alone"
+        )
         return None
 
     expanded = os.path.expanduser(install_dir_template)

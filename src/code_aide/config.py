@@ -201,8 +201,10 @@ def versions_cache_is_fresh(tools: Mapping[str, Dict[str, Any]]) -> bool:
             if not tool_config.get("latest_version"):
                 return False
         elif install_type in (InstallType.SCRIPT, InstallType.DIRECT_DOWNLOAD):
-            has_version_source = tool_config.get("version_url") or tool_config.get(
-                "version_manifest_url_template"
+            has_version_source = (
+                tool_config.get("version_url")
+                or tool_config.get("version_manifest_url_template")
+                or tool_config.get("github_release_repo")
             )
             if has_version_source and not tool_config.get("latest_version"):
                 return False
@@ -229,7 +231,9 @@ def refresh_versions_cache(tools: Mapping[str, Dict[str, Any]]) -> None:
             if install_type == InstallType.NPM:
                 result = check_npm_tool(name, tool_config)
             elif install_type in (InstallType.SCRIPT, InstallType.DIRECT_DOWNLOAD):
-                if "install_url" not in tool_config:
+                if "install_url" not in tool_config and not tool_config.get(
+                    "github_release_repo"
+                ):
                     continue
                 result = check_script_tool(name, tool_config)
             else:
