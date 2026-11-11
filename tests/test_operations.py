@@ -415,6 +415,13 @@ class TestMigrateInstallMethod(unittest.TestCase):
 class TestCmdUpgradeDefaultSelection(unittest.TestCase):
     """Tests for default cmd_upgrade behavior."""
 
+    def setUp(self):
+        # Selection uses fixture versions; refreshing would write fake tools
+        # into the user's real cache and make results depend on its age.
+        refresh = mock.patch.object(cli_commands_actions, "ensure_versions_cache")
+        refresh.start()
+        self.addCleanup(refresh.stop)
+
     def test_default_upgrades_only_out_of_date_installed_tools(self):
         tools = {
             "old": {
