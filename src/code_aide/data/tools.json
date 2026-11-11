@@ -33,6 +33,9 @@
       "command": "claude",
       "install_type": "script",
       "install_url": "https://claude.ai/install.sh",
+      "macos_quarantine_paths": [
+        "~/.local/bin/claude"
+      ],
       "install_sha256": "3a68d3406cf674e17bed1733a4dcf37805e2e47d87417700007d7e1aa766a944",
       "version_url": "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/latest",
       "prerequisites": [],
@@ -72,6 +75,9 @@
       ],
       "install_type": "script",
       "install_url": "https://antigravity.google/cli/install.sh",
+      "macos_quarantine_paths": [
+        "~/.local/bin/agy"
+      ],
       "install_sha256": "62966c07365423bd4dc209355060744058fb30d60f5323e2d360e39de64e5042",
       "version_manifest_url_template": "https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/{platform}.json",
       "prerequisites": [],
@@ -89,6 +95,10 @@
       "command": "amp",
       "install_type": "script",
       "install_url": "https://ampcode.com/install.sh",
+      "macos_quarantine_paths": [
+        "~/.amp/bin",
+        "~/.local/bin/amp"
+      ],
       "install_sha256": "83b0a61b09cb653b92e47e039e3aba8bda60c62c0eea6e1467c1b1b12c258cc9",
       "install_script_path_prepend": [
         "~/.local/bin"

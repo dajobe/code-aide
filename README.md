@@ -145,6 +145,7 @@ consulted when the relevant install method or platform applies.
 | `install_sha256`                 | script   | SHA-256 of the install script body — required for verified installs                                                  |
 | `download_sha256`                | Cache    | SHA-256 of the downloaded tarball for direct_download tools; recorded by `update-versions`, verified on install      |
 | `install_script_path_prepend`    | script   | Extra directories prepended to `PATH` when the install script runs (e.g. `["~/.local/bin"]`)                         |
+| `macos_quarantine_paths`         | script   | Tool-owned paths for macOS quarantine cleanup; expands `~` and resolves executable symlinks                          |
 | `download_url_template`          | direct   | URL template with `{version}`, `{os}`, `{arch}` placeholders                                                         |
 | `install_dir`                    | direct   | Directory to extract into; supports `{version}`                                                                      |
 | `bin_dir`                        | direct   | Directory where symlinks for `command` are created (e.g. `~/.local/bin`)                                             |
@@ -244,6 +245,27 @@ uv run pytest tests/test_install.py::TestDetectOsArch -v
 ## License
 
 Apache-2.0
+
+## macOS quarantine during installation
+
+After successful installs and upgrades, code-aide removes the
+`com.apple.quarantine` attribute from the installed npm package (including
+nested native helpers), direct-download directory, or verified app bundle.
+Script installs clear their configured artifact paths and resolved command.
+Homebrew upgrades clear the selected formula or cask directory. Symlinks inside
+these directories are not followed into other installations.
+
+This addresses Gatekeeper prompts that can block unattended use, including
+Codex's `codex-code-mode-host` helper and the resulting "timed out negotiating
+with the code-mode host" error when quarantine is the cause. Helpers do not need
+to be on `PATH`. Other causes of that timeout are unaffected.
+
+Cleanup preserves other extended attributes and does not change system-wide
+Gatekeeper settings. It runs without `sudo`; permission failures are reported as
+install or upgrade failures, leaving the installed files in place. Dry runs and
+non-macOS hosts do not change extended attributes. Existing installs can be
+processed with `code-aide install --force TOOL` or `code-aide upgrade TOOL`.
+Updates performed independently by a tool's own updater are outside this step.
 
 ## npm download cache lifetime
 

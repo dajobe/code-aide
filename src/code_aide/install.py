@@ -28,6 +28,7 @@ from code_aide.console import (
     warning,
 )
 from code_aide.npm_cache import npm_cache_environment, stop_process_group
+from code_aide import macos_quarantine
 from code_aide.install_types import InstallType, get_tool_install_type
 from code_aide.release_assets import (
     install_marker_matches,
@@ -403,6 +404,9 @@ def install_direct_download(
                 return False
             _extract_tarball(tarball_data, install_dir, cfg, version)
 
+        if not macos_quarantine.clear_quarantine(install_dir):
+            return False
+
         os.makedirs(bin_dir, exist_ok=True)
         symlinks = cfg.get("symlinks", {})
         link_paths = []
@@ -531,6 +535,8 @@ def install_tool(
                 info(f"[DRYRUN] Would install npm package: {npm_package}")
             else:
                 run_command(["npm", "install", "-g", npm_package], check=True)
+                if not macos_quarantine.clear_npm_quarantine(npm_package):
+                    return InstallOutcome(False)
                 npm_bin_dir = get_npm_global_bin_dir()
                 if npm_bin_dir:
                     bin_dirs = (npm_bin_dir,)
@@ -553,6 +559,8 @@ def install_tool(
                 if dryrun:
                     success(f"{tool_config['name']} verification passed")
                 else:
+                    if not macos_quarantine.clear_script_quarantine(tool_config):
+                        return InstallOutcome(False)
                     success(f"{tool_config['name']} installed successfully")
                     info(tool_config["next_steps"])
                     if "docs_url" in tool_config:

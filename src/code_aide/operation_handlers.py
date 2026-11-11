@@ -32,6 +32,7 @@ from code_aide.app_bundle import (
     remove_app_bundle,
 )
 from code_aide.constants import TOOLS
+from code_aide import macos_quarantine
 from code_aide.path_copies import npm_prefix_for
 from code_aide.install_types import (
     InstallMethod,
@@ -78,7 +79,7 @@ def _upgrade_brew_formula(_name: str, cfg: Dict, detail: Optional[str]) -> bool:
         error(f"No brew formula detected for {cfg['name']}")
         return False
     run_command(["brew", "upgrade", detail], check=True, capture=False)
-    return True
+    return macos_quarantine.clear_brew_quarantine(detail, cask=False)
 
 
 def _upgrade_brew_cask(_name: str, cfg: Dict, detail: Optional[str]) -> bool:
@@ -88,7 +89,7 @@ def _upgrade_brew_cask(_name: str, cfg: Dict, detail: Optional[str]) -> bool:
     if not _cask_app_stopped(cfg, detail, "upgrade it"):
         return False
     run_command(["brew", "upgrade", "--cask", detail], check=True, capture=False)
-    return True
+    return macos_quarantine.clear_brew_quarantine(detail, cask=True)
 
 
 def _upgrade_npm(_name: str, cfg: Dict, detail: Optional[str]) -> bool:
@@ -96,22 +97,24 @@ def _upgrade_npm(_name: str, cfg: Dict, detail: Optional[str]) -> bool:
     if not npm_package:
         error(f"No npm package configured for {cfg['name']}")
         return False
+    prefix_args = _npm_prefix_args(cfg)
     run_command(
-        ["npm", "install", "-g", *_npm_prefix_args(cfg), f"{npm_package}@latest"],
+        ["npm", "install", "-g", *prefix_args, f"{npm_package}@latest"],
         check=True,
     )
-    return True
+    return macos_quarantine.clear_npm_quarantine(npm_package, prefix_args)
 
 
 def _upgrade_script(name: str, cfg: Dict, _detail: Optional[str]) -> bool:
     if get_tool_install_type(cfg) == InstallType.DIRECT_DOWNLOAD:
         return install_direct_download(name, cfg)
-    return run_install_script(
+    installed = run_install_script(
         cfg["install_url"],
         cfg["name"],
         cfg.get("install_sha256"),
         env=get_install_script_env(cfg),
     )
+    return installed and macos_quarantine.clear_script_quarantine(cfg)
 
 
 def _upgrade_direct_download(name: str, cfg: Dict, _detail: Optional[str]) -> bool:

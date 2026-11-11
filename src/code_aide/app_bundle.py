@@ -25,7 +25,7 @@ import time
 import urllib.request
 from typing import Any, Dict, List, Optional
 
-from code_aide import __version__
+from code_aide import __version__, macos_quarantine
 from code_aide.console import error, info, success, warning
 from code_aide.detection_types import DetectedInstallInfo
 from code_aide.install_types import InstallMethod, InstallType, parse_install_type
@@ -410,7 +410,7 @@ def install_app_bundle(
         and (dryrun or signature_ok(bundle))
     ):
         info(f"{name} {version} is already active at {link}")
-        return True
+        return dryrun or macos_quarantine.clear_quarantine(bundle)
 
     if dryrun:
         info(f"[DRYRUN] Would download: {url}")
@@ -439,7 +439,11 @@ def install_app_bundle(
         if not ensure_app_stopped(tool_config, f"switch {name} to {version}"):
             return False
         if staged_bundle and staging:
+            if not macos_quarantine.clear_quarantine(staged_bundle):
+                return False
             _move_into_place(staged_bundle, bundle, staging)
+        elif not macos_quarantine.clear_quarantine(bundle):
+            return False
         _repoint_link(link, bundle)
     except (OSError, RuntimeError, subprocess.CalledProcessError) as exc:
         error(f"Failed to install {name}: {exc}")
