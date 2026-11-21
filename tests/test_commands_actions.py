@@ -1,5 +1,6 @@
 """Unit tests for mutating CLI commands."""
 
+import argparse
 import contextlib
 import io
 import sys
@@ -387,7 +388,7 @@ class TestCmdUpgrade(unittest.TestCase):
                 commands_actions.cmd_upgrade(args)
 
         output = buf.getvalue()
-        self.assertIn("All installed tools are up to date", output)
+        self.assertIn("No tools are eligible for automatic upgrade", output)
         mock_upgrade.assert_not_called()
 
     def test_default_upgrade_skips_tool_when_installed_is_newer_than_catalog(self):
@@ -421,7 +422,38 @@ class TestCmdUpgrade(unittest.TestCase):
                 commands_actions.cmd_upgrade(args)
 
         output = buf.getvalue()
-        self.assertIn("All installed tools are up to date", output)
+        self.assertIn("No tools are eligible for automatic upgrade", output)
+        mock_upgrade.assert_not_called()
+
+    def test_default_upgrade_skips_outdated_self_updating_tool(self):
+        tools = {
+            "selfup": {
+                "name": "Self-updating Tool",
+                "command": "selfup",
+                "install_type": "script",
+                "latest_version": "2.0.0",
+                "self_updates": True,
+            }
+        }
+        args = argparse.Namespace(tools=[])
+
+        with (
+            mock.patch.dict(constants._TOOLS_DATA, tools, clear=True),
+            mock.patch.object(commands_actions, "ensure_versions_cache"),
+            mock.patch(
+                "code_aide.status.detect_install_method",
+                return_value={"method": "script", "detail": None},
+            ),
+            mock.patch(
+                "code_aide.status.get_tool_status",
+                return_value={"installed": True, "version": "1.0.0"},
+            ),
+            mock.patch.object(commands_actions, "upgrade_tool") as mock_upgrade,
+            contextlib.redirect_stdout(io.StringIO()) as output,
+        ):
+            commands_actions.cmd_upgrade(args)
+
+        self.assertIn("No tools are eligible for automatic upgrade", output.getvalue())
         mock_upgrade.assert_not_called()
 
     def test_default_upgrade_skips_system_managed_tool(self):
@@ -462,7 +494,7 @@ class TestCmdUpgrade(unittest.TestCase):
                 commands_actions.cmd_upgrade(args)
 
         output = buf.getvalue()
-        self.assertIn("All installed tools are up to date", output)
+        self.assertIn("No tools are eligible for automatic upgrade", output)
         mock_upgrade.assert_not_called()
 
     def test_default_upgrade_refreshes_versions_cache(self):

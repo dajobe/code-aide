@@ -154,7 +154,7 @@ def cmd_upgrade(args: argparse.Namespace) -> None:
         if tools_to_upgrade:
             info(f"Upgrading out-of-date tools: {', '.join(tools_to_upgrade)}")
         else:
-            info("All installed tools are up to date")
+            info("No tools are eligible for automatic upgrade")
             return
 
     tools_to_upgrade = resolve_tool_names(tools_to_upgrade, TOOLS)
