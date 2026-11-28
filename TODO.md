@@ -11,7 +11,7 @@ All items below are deferred; none are scheduled.
 | 2 | Cross-distro package detection | Med  | High   | Only Gentoo supported; other Linux distros get nothing |
 | 3 | Split large modules            | Low  | High   | Refactoring only; no behavior change                   |
 | 4 | Tests for edge cases           | Med  | Med    | PATH oddities, more version parsing corners            |
-| 5 | Stop Antigravity profile edits | Low  | Med    | Installer appends PATH lines to shell profiles         |
+| 5 | Antigravity self-update check  | Low  | Low    | Confirm self-updates do not re-edit shell profiles     |
 
 ## CLI and Automation UX
 
@@ -26,20 +26,14 @@ All items below are deferred; none are scheduled.
 
 ## Installer Side Effects
 
-- [ ] Figure out a way to stop the Antigravity CLI installer from editing shell
-  profiles. Installing `agy` appended `# Added by Antigravity CLI installer` and
-  `export PATH="$HOME/.local/bin:$PATH"` to `~/.bash_profile` and `~/.profile`.
-  On hosts where those files are symlinks into a dotfiles repository, this
-  dirties the repository and duplicates a PATH entry the dotfiles already set.
-  - `install.sh` itself does not touch profiles; its last step runs `agy
-    install` (or `agy install --dir DIR`) with no way to pass flags through.
-  - `agy install` accepts `--skip-path` (no PATH appending) and `--skip-aliases`
-    (no alias purging), so the fix is likely to get that call made with
-    `--skip-path`: for example, replicate the script's download, checksum, and
-    extract steps in code-aide and run `agy install --skip-path` ourselves, or
-    ask upstream to honor a flag or environment variable in `install.sh`.
-  - Check whether `agy` self-updates (`self_updates: true`) re-run the profile
-    step, and whether `code-aide upgrade` hits the same path.
+- [ ] Confirm that `agy` self-updates (`self_updates: true`) do not re-run the
+  shell profile step. code-aide installs now rewrite the verified `install.sh`
+  so its final `agy install` call passes `--skip-path --skip-aliases`
+  (`install_script_replacements` in `tools.json`), and restore the six shell
+  profiles the installer is known to edit once the script exits
+  (`install_preserve_files`). `code-aide upgrade` runs the same guarded script,
+  which exits early when `~/.local/bin/agy` exists. The self-updater inside
+  `agy` is outside code-aide's control.
 
 ## Maintainability and Tests
 

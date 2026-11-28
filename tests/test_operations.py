@@ -323,6 +323,8 @@ class TestMigrateInstallMethod(unittest.TestCase):
             "Amp (Sourcegraph)",
             "abc123",
             env=env,
+            replacements=None,
+            preserve_files=None,
         )
 
     def test_migration_fails_on_remove(self):

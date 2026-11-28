@@ -79,6 +79,22 @@
         "~/.local/bin/agy"
       ],
       "install_sha256": "62966c07365423bd4dc209355060744058fb30d60f5323e2d360e39de64e5042",
+      "install_script_replacements": [
+        {
+          "old": "\"$BINARY_PATH\" install",
+          "new": "\"$BINARY_PATH\" install --skip-path --skip-aliases"
+        }
+      ],
+      "install_script_replacements_note": "install.sh ends by running 'agy install', which appends PATH lines to and purges aliases from shell profiles, with no way to pass flags through; these flags stop all profile edits",
+      "install_preserve_files": [
+        "~/.zshrc",
+        "~/.zprofile",
+        "~/.bashrc",
+        "~/.bash_profile",
+        "~/.profile",
+        "~/.config/fish/config.fish"
+      ],
+      "install_preserve_files_note": "Shell profiles the installer is reported to edit; restored after install.sh runs in case the replacement above stops matching what the script does",
       "version_manifest_url_template": "https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/{platform}.json",
       "prerequisites": [],
       "min_node_version": null,

@@ -10,7 +10,7 @@ import subprocess
 import tarfile
 import tempfile
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Sequence
 
 from code_aide.app_bundle import (
     install_app_bundle,
@@ -36,6 +36,12 @@ from code_aide.release_assets import (
     record_launchers,
     unsupported_platform_message,
     write_install_marker,
+)
+from code_aide.preserved_files import get_install_preserve_files, preserved_files
+from code_aide.script_patches import (
+    ScriptReplacements,
+    apply_script_replacements,
+    get_install_script_replacements,
 )
 from code_aide.versions import check_script_tool, fetch_url
 
@@ -93,8 +99,14 @@ def run_install_script(
     expected_sha256: Optional[str] = None,
     dryrun: bool = False,
     env: Optional[Dict[str, str]] = None,
+    replacements: Optional[ScriptReplacements] = None,
+    preserve_files: Optional[Sequence[str]] = None,
 ) -> bool:
-    """Download and run an installation script with SHA256 verification."""
+    """Download and run an installation script with SHA256 verification.
+
+    Any replacements are applied to the script after verification. Files in
+    preserve_files are restored to their prior state once the script exits.
+    """
     try:
         info(f"Downloading install script from: {install_url}")
         script_content, _ = fetch_url(install_url)
@@ -121,6 +133,10 @@ def run_install_script(
                 "No SHA256 checksum configured - script integrity cannot be verified!"
             )
 
+        if replacements:
+            script_content = apply_script_replacements(script_content, replacements)
+            info(f"Applied {len(replacements)} install script replacement(s)")
+
         if dryrun:
             info(f"[DRYRUN] Would execute install script for {tool_name}")
             return True
@@ -129,7 +145,10 @@ def run_install_script(
         warning("This will run with your user privileges. Press Ctrl+C to cancel.")
 
         # Scripts may invoke npm themselves; inherit the same bounded cache.
-        with npm_cache_environment(env) as script_env:
+        with (
+            npm_cache_environment(env) as script_env,
+            preserved_files(preserve_files),
+        ):
             bash_process = subprocess.Popen(
                 ["bash"],
                 stdin=subprocess.PIPE,
@@ -555,6 +574,8 @@ def install_tool(
                 expected_sha256,
                 dryrun,
                 env=get_install_script_env(tool_config),
+                replacements=get_install_script_replacements(tool_config),
+                preserve_files=get_install_preserve_files(tool_config),
             ):
                 if dryrun:
                     success(f"{tool_config['name']} verification passed")

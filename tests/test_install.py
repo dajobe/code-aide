@@ -436,6 +436,8 @@ class TestInstallTool(unittest.TestCase):
             "abc123",
             False,
             env=env,
+            replacements=None,
+            preserve_files=None,
         )
 
 

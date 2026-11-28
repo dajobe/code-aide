@@ -1,9 +1,9 @@
 # Script Archive
 
-This directory contains archived copies of third-party install scripts used
-by code-aide. These are committed so that when an upstream script changes
-(detected by SHA256 mismatch during upgrade), you can diff the new version
-against the known-good archived copy.
+This directory contains archived copies of third-party install scripts used by
+code-aide. These are committed so that when an upstream script changes (detected
+by SHA256 mismatch during upgrade), you can diff the new version against the
+known-good archived copy.
 
 ## When a SHA256 verification fails
 
@@ -22,7 +22,12 @@ against the known-good archived copy.
        cp /tmp/new-script.sh script-archive/<tool>-install.sh
        # Update install_sha256 in src/code_aide/data/tools.json
 
-5. Commit both changes together.
+5. If the tool has `install_script_replacements` in `tools.json`, check that
+   each `old` string still appears in the new script and still does what the
+   replacement intends. `uv run pytest tests/test_script_patches.py` fails if a
+   bundled replacement no longer matches its archived script.
+
+6. Commit both changes together.
 
 ## Tool metadata
 

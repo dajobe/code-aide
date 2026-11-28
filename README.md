@@ -145,6 +145,8 @@ consulted when the relevant install method or platform applies.
 | `install_sha256`                 | script   | SHA-256 of the install script body — required for verified installs                                                  |
 | `download_sha256`                | Cache    | SHA-256 of the downloaded tarball for direct_download tools; recorded by `update-versions`, verified on install      |
 | `install_script_path_prepend`    | script   | Extra directories prepended to `PATH` when the install script runs (e.g. `["~/.local/bin"]`)                         |
+| `install_preserve_files`         | script   | Files (e.g. shell profiles) snapshotted before the install script runs and restored afterwards, symlinks included    |
+| `install_script_replacements`    | script   | List of `{"old", "new"}` text replacements applied to the script after SHA-256 verification; a missing `old` fails   |
 | `macos_quarantine_paths`         | script   | Tool-owned paths for macOS quarantine cleanup; expands `~` and resolves executable symlinks                          |
 | `download_url_template`          | direct   | URL template with `{version}`, `{os}`, `{arch}` placeholders                                                         |
 | `install_dir`                    | direct   | Directory to extract into; supports `{version}`                                                                      |

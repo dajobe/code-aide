@@ -26,6 +26,8 @@ from code_aide.install import (
     run_install_script,
     run_pkg_command,
 )
+from code_aide.preserved_files import get_install_preserve_files
+from code_aide.script_patches import get_install_script_replacements
 from code_aide.app_bundle import (
     ensure_app_stopped,
     install_app_bundle,
@@ -113,6 +115,8 @@ def _upgrade_script(name: str, cfg: Dict, _detail: Optional[str]) -> bool:
         cfg["name"],
         cfg.get("install_sha256"),
         env=get_install_script_env(cfg),
+        replacements=get_install_script_replacements(cfg),
+        preserve_files=get_install_preserve_files(cfg),
     )
     return installed and macos_quarantine.clear_script_quarantine(cfg)
 
